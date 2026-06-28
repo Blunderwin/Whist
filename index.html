@@ -253,7 +253,7 @@
 
   <nav class="tabs" id="tabs">
     <button data-view="whist" aria-selected="true">Whist</button>
-    <button data-view="twist">Twist &#127866;</button>
+    <button data-view="twist">Twist</button>
     <button data-view="stats">Hall of Fame</button>
   </nav>
 
@@ -315,7 +315,7 @@
         id           uuid primary key,
         created_at   timestamptz not null default now(),
         finished_at  timestamptz,
-        players      jsonb not null,   -- ["Aoife","Liam",...]  (index = player slot)
+        players      jsonb not null,   -- ["Player 1","Player 2",...]  (index = player slot)
         settings     jsonb not null,
         start_dealer int  not null,
         rounds       jsonb not null,   -- [{cards,dealerIndex,bids[],tricks[],trumps,recorded}]
@@ -457,7 +457,7 @@ function focusAdvance(inputs, current, max, actionSel){
 const DEFAULTS = { startCards:7, bonus:10, addTricks:true, failTricks:true, hook:true, relaxLast:true, missMult:2, makeCount:1 };
 // Shown as greyed placeholder text in the setup fields (NOT pre-filled values),
 // and used as the fallback name if a field is left blank.
-const EXAMPLE_NAMES = ["Aoife","Liam","Niamh","Cillian","Saoirse","Cormac","Maeve","Declan","Tadhg","Roisin","Eoin","Brid","Fionn"];
+const EXAMPLE_NAMES = ["Player 1","Player 2","Player 3","Player 4","Player 5","Player 6","Player 7","Player 8","Player 9","Player 10","Player 11","Player 12","Player 13"];
 const SUITS = [["S","\u2660","Spades"],["H","\u2665","Hearts"],["D","\u2666","Diamonds"],["C","\u2663","Clubs"]];
 function maxPlayersFor(mode){ return mode==="whist" ? 8 : 13; }
 
