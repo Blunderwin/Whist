@@ -260,16 +260,14 @@
    1. CONFIG + STORAGE ADAPTER  (the future-proof seam)
    ---------------------------------------------------------------
    Everything the app reads/writes goes through `Storage`, an async
-   adapter. Today it's pointed at Supabase. To go back to pure
-   on-device storage, flip CONFIG.backend to 'local' — the rest of
-   the app does not change.
+   adapter. Today it's localStorage. To move all-time scores & stats
+   to a (nano) Supabase instance, flip CONFIG.backend to 'supabase',
+   fill in the creds, and implement the SupabaseAdapter methods —
+   the rest of the app does not change.
 */
 const CONFIG = {
-  backend: "supabase",                // "local" | "supabase"
-  supabase: {
-    url: "https://iyojwrkfqcxpwdoigmuz.supabase.co",
-    anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5b2p3cmtmcWN4cHdkb2lnbXV6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2Mzc1NTQsImV4cCI6MjA5ODIxMzU1NH0.rtduCfAYXYc2GtUZIE2TXKYKYzSp429y-IakQ5t43YE"
-  }
+  backend: "local",                 // "local" | "supabase"
+  supabase: { url: "", anonKey: "" } // fill these to go online
 };
 
 /* ---- Local adapter: localStorage with in-memory fallback ---- */
@@ -280,22 +278,20 @@ const LS = {
   del(k){ try { localStorage.removeItem(k); } catch { mem.delete(k); } }
 };
 const LocalAdapter = {
-  async getActive(){
-    const r = LS.get("cw_active");
-    try { return r ? JSON.parse(r) : null; }
-    catch(e){ console.warn("Corrupt cw_active in storage — clearing:", e); LS.del("cw_active"); return null; }
-  },
+  async getActive(){ const r = LS.get("cw_active"); return r ? JSON.parse(r) : null; },
   async setActive(g){ LS.set("cw_active", JSON.stringify(g)); },
   async clearActive(){ LS.del("cw_active"); },
-  async getGames(){
-    const r = LS.get("cw_games");
-    let m = {};
-    try { m = r ? JSON.parse(r) : {}; }
-    catch(e){ console.warn("Corrupt cw_games in storage — clearing:", e); LS.del("cw_games"); }
-    return Object.values(m);
-  },
+  async getGames(){ const r = LS.get("cw_games"); const m = r ? JSON.parse(r) : {}; return Object.values(m); },
   async saveGame(g){ const r = LS.get("cw_games"); const m = r ? JSON.parse(r) : {}; m[g.id] = g; LS.set("cw_games", JSON.stringify(m)); },
   label(){ return "Local table"; }
+};
+
+const CONFIG = {
+  backend: "supabase",
+  supabase: {
+    url: "https://iyojwrkfqcxpwdoigmuz.supabase.co",
+    anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5b2p3cmtmcWN4cHdkb2lnbXV6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2Mzc1NTQsImV4cCI6MjA5ODIxMzU1NH0.rtduCfAYXYc2GtUZIE2TXKYKYzSp429y-IakQ5t43YE"
+  }
 };
 
 /* ---- Supabase adapter (dependency-free REST) ----
@@ -449,13 +445,8 @@ const state = { view:"game", active:null, games:[], editing:null, setupPlayers:[
 
 async function boot(){
   $("#storeBadge").textContent = Storage.label();
-  try{
-    state.active = await Storage.getActive();
-    state.games  = await Storage.getGames();
-  }catch(e){
-    console.warn("Boot storage read failed — starting fresh:", e);
-    state.active = null; state.games = [];
-  }
+  state.active = await Storage.getActive();
+  state.games  = await Storage.getGames();
   wireTabs();
   render();
 }
