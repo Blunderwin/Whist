@@ -96,29 +96,45 @@
   .row > *{flex:1}
 
   /* ---------- Player setup chips ---------- */
-  .player-edit{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+  .player-edit{display:flex;gap:8px;align-items:center;margin-bottom:8px;transition:background .15s}
+  .player-edit.dragging{position:relative;z-index:5;background:rgba(199,154,59,.10);border-radius:10px;box-shadow:var(--shadow)}
   .player-edit .num{font-family:"Space Mono";color:var(--gold);width:22px;text-align:center}
   .player-edit button{flex:0 0 auto;background:transparent;border:1px solid var(--line);
     color:var(--ash);border-radius:10px;width:44px;height:46px;font-size:18px}
+  .player-edit .draghandle{width:38px}
+  .draghandle{cursor:grab;touch-action:none;user-select:none;font-size:16px}
+  .draghandle:active{cursor:grabbing}
+  .namebox{position:relative;flex:1;min-width:0}
+  .suggest{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:30;
+    background:#1b140d;border:1px solid var(--gold-dim);border-radius:10px;
+    box-shadow:var(--shadow);max-height:200px;overflow-y:auto}
+  .suggest[hidden]{display:none}
+  .suggest button{display:block;width:100%;text-align:left;background:transparent;border:none;
+    color:var(--head);padding:10px 14px;font-size:15px;font-family:"Spectral";border-bottom:1px solid var(--line)}
+  .suggest button:last-child{border-bottom:none}
+  .suggest button:hover,.suggest button:focus{background:rgba(199,154,59,.16);color:var(--gold)}
 
   /* ---------- The Shelf: pint standings (signature element) ---------- */
   .shelf{display:flex;gap:14px;overflow-x:auto;padding:6px 2px 16px;
     border-bottom:2px solid var(--gold-dim);margin-bottom:6px;-webkit-overflow-scrolling:touch}
   .pint{flex:0 0 auto;width:74px;text-align:center}
-  .glass{position:relative;height:120px;width:62px;margin:0 auto 8px;
-    border:2px solid var(--line);border-top:none;
-    border-radius:6px 6px 16px 16px / 6px 6px 26px 26px;
-    background:rgba(0,0,0,.25);overflow:hidden}
-  .glass::before{content:"";position:absolute;inset:0;border-radius:inherit;
+  .glass{position:relative;height:128px;width:64px;margin:0 auto 8px;
+    border-radius:8px 8px 14px 14px / 8px 8px 22px 22px; /* fallback if clip-path unsupported */
+    clip-path:polygon(4% 0%,96% 0%,76% 12%,98% 44%,88% 72%,72% 92%,62% 100%,38% 100%,28% 92%,12% 72%,2% 44%,24% 12%);
+    background:rgba(0,0,0,.25);overflow:hidden;
+    filter:drop-shadow(0 0 1px var(--line)) drop-shadow(0 2px 3px rgba(0,0,0,.45))}
+  .glass::before{content:"";position:absolute;inset:0;
     background:linear-gradient(90deg,rgba(255,255,255,.10),transparent 30%,transparent 70%,rgba(255,255,255,.06));pointer-events:none;z-index:3}
   .fill{position:absolute;left:0;right:0;bottom:0;
-    background:linear-gradient(180deg,#3a2a16,#0d0805);transition:height .7s cubic-bezier(.2,.8,.2,1)}
-  .foam{position:absolute;left:0;right:0;top:-7px;height:9px;border-radius:50%;
-    background:var(--head);box-shadow:0 0 6px rgba(239,226,196,.5)}
-  .pint .name{font-size:12px;color:var(--head);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
-  .pint .score{font-family:"Space Mono";font-size:18px;color:var(--gold)}
-  .pint .drinks{font-family:"Space Mono";font-size:11px;color:#e7a39d;margin-top:2px;min-height:14px}
-  .pint.lead .glass{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold),0 0 16px -4px var(--gold)}
+    background:
+      radial-gradient(120% 60% at 50% 0%,rgba(163,45,39,.28),transparent 55%),
+      linear-gradient(180deg,#2b1810,#0a0503);
+    transition:height .7s cubic-bezier(.2,.8,.2,1)}
+  .foam{position:absolute;left:0;right:0;top:-22px;height:26px;
+    border-radius:50% 50% 8px 8px / 65% 65% 12px 12px;
+    background:radial-gradient(120% 160% at 50% 0%,#fffaf0 0%,var(--head) 45%,#d8c89a 100%);
+    box-shadow:0 0 8px rgba(239,226,196,.55),0 3px 0 rgba(40,26,12,.35) inset}
+  .pint.lead .glass{filter:drop-shadow(0 0 1px var(--gold)) drop-shadow(0 0 10px rgba(199,154,59,.6))}
   .crown{color:var(--gold);font-size:12px;height:14px;line-height:14px}
 
   /* ---------- Round entry ---------- */
@@ -600,8 +616,12 @@ function viewSetup(mode){
   const max = (n)=> Math.min(13, Math.floor(52 / Math.max(2,n)));
   const rows = p.map((nm,i)=>`
     <div class="player-edit">
+      <button type="button" class="draghandle" aria-label="Drag to reorder">&#9776;</button>
       <span class="num">${i+1}</span>
-      <input type="text" data-pi="${i}" value="${esc(nm)}" placeholder="${esc(EXAMPLE_NAMES[i]||("Player "+(i+1)))}" maxlength="16" autocomplete="off"/>
+      <div class="namebox">
+        <input type="text" class="nameinput" data-pi="${i}" value="${esc(nm)}" placeholder="${esc(EXAMPLE_NAMES[i]||("Player "+(i+1)))}" maxlength="16" autocomplete="off"/>
+        <div class="suggest" data-sug="${i}" hidden></div>
+      </div>
       <button data-rm="${i}" ${p.length<=2?"disabled":""} aria-label="Remove">&times;</button>
     </div>`).join("");
   const startMax = max(p.length);
@@ -611,7 +631,7 @@ function viewSetup(mode){
   <section class="panel">
     <h2>${title}</h2>
     <div class="sub">${sub}</div>
-    <div style="margin-top:14px">${rows}</div>
+    <div class="player-list" id="playerList" style="margin-top:14px">${rows}</div>
     <button class="btn ghost sm" id="addP" ${p.length>=maxP?"disabled":""} style="margin-top:4px">+ Add player</button>
 
     <label class="fld">First dealer</label>
@@ -657,6 +677,87 @@ function wireSetup(mode){
   $("#startCards").oninput = ()=>updateRoundsHint(mode);
   updateRoundsHint(mode);
   $("#startGame").onclick = ()=>startGame(mode);
+wireReorder(mode);
+  wireNameSuggest(mode);
+}
+// All player names that have ever played (trimmed, de-duped case-insensitively,
+// pooled across both Whist and Twist games + whichever game is in progress).
+function allKnownNames(){
+  const seen = new Map();
+  const add = nm => { const t=(nm||"").trim(); if(!t) return; const k=t.toLowerCase(); if(!seen.has(k)) seen.set(k,t); };
+  ["whist","twist"].forEach(mode=>{
+    (state.games[mode]||[]).forEach(g=> g.players.forEach(add));
+    if(state.active && state.active[mode]) state.active[mode].players.forEach(add);
+  });
+  return [...seen.values()].sort((a,b)=>a.localeCompare(b));
+}
+
+// Type-to-filter dropdown under each name field, fed by allKnownNames().
+function wireNameSuggest(mode){
+  const known = allKnownNames();
+  if(!known.length) return;
+  $$('#app .nameinput').forEach(inp=>{
+    const i = +inp.dataset.pi;
+    const box = $(`#app .suggest[data-sug="${i}"]`);
+    if(!box) return;
+    const renderSug = ()=>{
+      const q = inp.value.trim().toLowerCase();
+      const others = state.setupPlayers[mode].map((n,idx)=> idx===i?null:(n||"").trim().toLowerCase()).filter(Boolean);
+      const matches = known.filter(n=>{
+        const lo = n.toLowerCase();
+        return lo.includes(q) && lo!==q && !others.includes(lo);
+      }).slice(0,6);
+      box.innerHTML = matches.map(n=>`<button type="button" data-pick="${esc(n)}">${esc(n)}</button>`).join("");
+      box.hidden = matches.length===0;
+    };
+    inp.addEventListener('focus', renderSug);
+    inp.addEventListener('input', renderSug);
+    inp.addEventListener('blur', ()=> setTimeout(()=>{ box.hidden = true; }, 150));
+    box.addEventListener('mousedown', e=>{
+      const btn = e.target.closest('[data-pick]'); if(!btn) return;
+      e.preventDefault();
+      inp.value = btn.dataset.pick;
+      state.setupPlayers[mode][i] = btn.dataset.pick;
+      box.hidden = true;
+      updateRoundsHint(mode); refreshDealerOpts(mode);
+    });
+  });
+}
+
+// Drag-to-reorder via Pointer Events (mouse + touch). Dragging the handle
+// swaps past a neighbour once the pointer crosses that neighbour's midpoint;
+// the new seating order is committed to state.setupPlayers on release.
+function wireReorder(mode){
+  const list = $('#playerList'); if(!list) return;
+  $$('.draghandle', list).forEach(handle=>{
+    handle.onpointerdown = e=>{
+      e.preventDefault();
+      const row = handle.closest('.player-edit');
+      const startY = e.clientY, startTop = row.offsetTop;
+      row.classList.add('dragging');
+      try{ handle.setPointerCapture(e.pointerId); }catch{}
+
+      function move(ev){
+        const desiredTop = startTop + (ev.clientY - startY);
+        const rows = $$('.player-edit', list);
+        const idx = rows.indexOf(row);
+        const prev = rows[idx-1], next = rows[idx+1];
+        if(prev && desiredTop < prev.offsetTop + prev.offsetHeight/2) list.insertBefore(row, prev);
+        else if(next && desiredTop + row.offsetHeight > next.offsetTop + next.offsetHeight/2) list.insertBefore(next, row);
+        row.style.transform = `translateY(${desiredTop - row.offsetTop}px)`;
+      }
+      function up(){
+        document.removeEventListener('pointermove', move);
+        document.removeEventListener('pointerup', up);
+        row.classList.remove('dragging');
+        row.style.transform = '';
+        state.setupPlayers[mode] = $$('.nameinput', list).map(inp=>inp.value);
+        render(); wireSetup(mode);
+      }
+      document.addEventListener('pointermove', move);
+      document.addEventListener('pointerup', up);
+    };
+  });
 }
 function refreshDealerOpts(mode){
   const sel = $("#dealer"); if(!sel) return; const cur = sel.value;
