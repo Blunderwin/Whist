@@ -133,27 +133,37 @@
 }
 
 .glass{
-    position:relative;
-    width:60px;
-    height:138px;
-    margin:0 auto 8px;
-    overflow:hidden;
+    position:relative;
+    width:62px;
+    height:138px;
+    margin:0 auto 8px;
 
-    /* Guinness pint silhouette */
-    clip-path:path('M12 0 L48 0 C49 12 49 24 49 40 C49 56 56 74 58 94 C60 116 53 131 47 138 L13 138 C7 131 0 116 2 94 C4 74 11 56 11 40 C11 24 11 12 12 0 Z');
+    overflow:hidden;
 
-    background:
-        linear-gradient(
-            90deg,
-            rgba(255,255,255,.05),
-            rgba(255,255,255,.02)
-        );
+    /* Proper Guinness profile */
+    clip-path:path('M17 2
+L47 2
+L48 32
+C48 48 53 70 56 97
+C59 122 53 135 46 138
+L18 138
+C11 135 5 122 8 97
+C11 70 16 48 16 32
+Z');
 
-    border:1px solid rgba(255,255,255,.15);
+    background:
+        linear-gradient(
+            90deg,
+            rgba(255,255,255,.13) 0%,
+            rgba(255,255,255,.03) 18%,
+            rgba(255,255,255,.01) 75%,
+            rgba(255,255,255,.09) 100%
+        );
 
-    filter:
-        drop-shadow(0 0 1px var(--line))
-        drop-shadow(0 3px 4px rgba(0,0,0,.45));
+    border:1px solid rgba(255,255,255,.20);
+
+    filter:
+        drop-shadow(0 2px 3px rgba(0,0,0,.45));
 }
 
 .glass::before{
@@ -174,61 +184,66 @@
 }
 
 .fill{
-    position:absolute;
-    left:0;
-    right:0;
-    bottom:0;
+    position:absolute;
+    left:0;
+    right:0;
+    bottom:0;
 
-    height:0%;
+    height:0%;
 
-    background:
-        radial-gradient(
-            ellipse at 50% 0%,
-            rgba(150,45,35,.22),
-            transparent 55%
-        ),
-        linear-gradient(
-            180deg,
-            #2b1810 0%,
-            #120907 45%,
-            #070303 100%
-        );
+    overflow:visible;
 
-    transition:height .7s cubic-bezier(.2,.8,.2,1);
+    background:
+        radial-gradient(
+            ellipse at 50% 0%,
+            rgba(185,70,40,.20),
+            transparent 60%
+        ),
+        linear-gradient(
+            180deg,
+            #352015,
+            #1d0d08 45%,
+            #060303
+        );
 
-    overflow:visible;
+    transition:
+        height .8s cubic-bezier(.2,.8,.2,1);
 }
 
 .foam{
-    position:absolute;
-    left:0;
-    right:0;
-    top:-13px;
-    height:18px;
+    position:absolute;
 
-    border-radius:50% 50% 8px 8px;
+    left:2px;
+    right:2px;
 
-    background:
-        radial-gradient(
-            ellipse at center,
-            #fffef9 0%,
-            var(--head) 65%,
-            #d8c89a 100%
-        );
+    top:-10px;
 
-    box-shadow:
-        inset 0 -2px 3px rgba(0,0,0,.12),
-        0 0 8px rgba(239,226,196,.45);
+    height:15px;
 
-    opacity:0;
-    transform:translateY(5px);
-    transition:.25s;
+    border-radius:50%;
+
+    background:
+        radial-gradient(
+            ellipse at center,
+            #fffef9,
+            #f6edd5 70%,
+            #e0cca2
+        );
+
+    opacity:0;
+
+    transform:translateY(4px);
+
+    transition:.25s;
 }
 
 .fill.full .foam{
-    opacity:1;
-    transform:translateY(0);
+
+    opacity:1;
+
+    transform:none;
 }
+
 
 .pint.lead .glass{
     filter:
@@ -1006,7 +1021,8 @@ function shelf(g,t,ld,dr,mode){
     return `<div class="pint ${lead?'lead':''}">
       <div class="crown">${lead?'&#9819;':''}</div>
       <div class="glass">
-    <div class="fill ${pct>=88 ? 'full' : ''}" style="height:${pct}%">
+    <div class="fill ${pct>88?'full':''}"
+     style="height:${pct}%">
         <div class="foam"></div>
     </div>
 </div>
