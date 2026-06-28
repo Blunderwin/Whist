@@ -118,23 +118,23 @@
   .shelf{display:flex;gap:14px;overflow-x:auto;padding:6px 2px 16px;
     border-bottom:2px solid var(--gold-dim);margin-bottom:6px;-webkit-overflow-scrolling:touch}
   .pint{flex:0 0 auto;width:74px;text-align:center}
-  .glass{position:relative;height:128px;width:64px;margin:0 auto 8px;
-    border-radius:8px 8px 14px 14px / 8px 8px 22px 22px; /* fallback if clip-path unsupported */
-    clip-path:polygon(4% 0%,96% 0%,76% 12%,98% 44%,88% 72%,72% 92%,62% 100%,38% 100%,28% 92%,12% 72%,2% 44%,24% 12%);
-    background:rgba(0,0,0,.25);overflow:hidden;
-    filter:drop-shadow(0 0 1px var(--line)) drop-shadow(0 2px 3px rgba(0,0,0,.45))}
-  .glass::before{content:"";position:absolute;inset:0;
-    background:linear-gradient(90deg,rgba(255,255,255,.10),transparent 30%,transparent 70%,rgba(255,255,255,.06));pointer-events:none;z-index:3}
-  .fill{position:absolute;left:0;right:0;bottom:0;
-    background:
-      radial-gradient(120% 60% at 50% 0%,rgba(163,45,39,.28),transparent 55%),
-      linear-gradient(180deg,#2b1810,#0a0503);
-    transition:height .7s cubic-bezier(.2,.8,.2,1)}
-  .foam{position:absolute;left:0;right:0;top:-22px;height:26px;
-    border-radius:50% 50% 8px 8px / 65% 65% 12px 12px;
-    background:radial-gradient(120% 160% at 50% 0%,#fffaf0 0%,var(--head) 45%,#d8c89a 100%);
-    box-shadow:0 0 8px rgba(239,226,196,.55),0 3px 0 rgba(40,26,12,.35) inset}
-  .pint.lead .glass{filter:drop-shadow(0 0 1px var(--gold)) drop-shadow(0 0 10px rgba(199,154,59,.6))}
+.glass{position:relative;height:128px;width:64px;margin:0 auto 8px;
+clip-path:path('M 8 128 C 8 110, 0 92, 0 62 C 0 36, 4 24, 4 18 C 4 9, 1 4, 1 0 L 63 0 C 63 4, 60 9, 60 18 C 60 24, 64 36, 64 62 C 64 92, 56 110, 56 128 Z');
+border-radius:8px 8px 14px 14px; /* fallback if clip-path:path() unsupported */
+background:rgba(0,0,0,.25);overflow:hidden;
+filter:drop-shadow(0 0 1px var(--line)) drop-shadow(0 2px 3px rgba(0,0,0,.45))}
+.glass::before{content:"";position:absolute;inset:0;
+background:linear-gradient(90deg,rgba(255,255,255,.10),transparent 30%,transparent 70%,rgba(255,255,255,.06));pointer-events:none;z-index:3}
+.fill{position:absolute;left:0;right:0;bottom:0;
+background:
+  radial-gradient(120% 60% at 50% 0%,rgba(163,45,39,.28),transparent 55%),
+  linear-gradient(180deg,#2b1810,#0a0503);
+transition:height .7s cubic-bezier(.2,.8,.2,1)}
+.foam{position:absolute;left:0;right:0;top:-14px;height:18px;
+border-radius:50% 50% 8px 8px / 65% 65% 12px 12px;
+background:radial-gradient(120% 160% at 50% 0%,#fffaf0 0%,var(--head) 45%,#d8c89a 100%);
+box-shadow:0 0 8px rgba(239,226,196,.55),0 3px 0 rgba(40,26,12,.35) inset}
+.pint.lead .glass{filter:drop-shadow(0 0 1px var(--gold)) drop-shadow(0 0 10px rgba(199,154,59,.6))}
   .crown{color:var(--gold);font-size:12px;height:14px;line-height:14px}
 
   /* ---------- Round entry ---------- */
@@ -359,6 +359,21 @@
 
    Everything else (all-time stats, drink tallies) is computed
    client-side from the stored games, so the schema stays this simple.
+
+      -- Shared player directory — a living roster of every name ever
+      -- typed at this table, used purely to power the autocomplete in
+      -- Setup (PlayerDirectory below). Independent of cw_games /
+      -- cw_twist_games, and NOT mode-specific.
+      create table cw_players (
+        id uuid primary key default gen_random_uuid(),
+        name text not null,
+        normalized_name text generated always as (lower(trim(name))) stored,
+        created_at timestamptz not null default now(),
+        unique(normalized_name)
+      );
+      alter table cw_players enable row level security;
+      create policy "anon read"  on cw_players for select using (true);
+      create policy "anon write" on cw_players for insert with check (true);
 */
 const CONFIG = {
   backend: "supabase",                // "local" | "supabase"
@@ -441,6 +456,43 @@ function rowToGame(r,mode){ return { id:r.id, mode, createdAt:r.created_at, fini
   players:r.players, settings:r.settings, startDealer:r.start_dealer, rounds:r.rounds, winner:r.winner }; }
 
 const Storage = CONFIG.backend === "supabase" ? SupabaseAdapter : LocalAdapter;
+
+/* ---- Player directory adapter (shared roster, mode-independent) ----
+   Backs the name-suggest dropdown in Setup. Lives in its own table
+   (cw_players) so it's never tangled with game data. Falls back to
+   silence (not an error) if the table doesn't exist yet — the app
+   still works fine deriving suggestions from past games only. */
+const PLAYERS_CACHE_KEY = "cw_players_cache";
+const PlayerDirectory = {
+  async list(){
+    if(CONFIG.backend !== "supabase") return null;
+    try{
+      const res = await fetch(SupabaseAdapter._url("cw_players?select=name&order=name.asc"), { headers:SupabaseAdapter._h() });
+      if(!res.ok) throw new Error("HTTP "+res.status);
+      const names = (await res.json()).map(r=>r.name);
+      try{ LS.set(PLAYERS_CACHE_KEY, JSON.stringify(names)); }catch{}
+      return names;
+    }catch(e){
+      console.warn("PlayerDirectory.list failed — using cache:", e);
+      try{ const c = LS.get(PLAYERS_CACHE_KEY); return c ? JSON.parse(c) : null; }catch{ return null; }
+    }
+  },
+  // Fire-and-forget upsert; ignores rows that already exist (unique on
+  // normalized_name). Never blocks the UI and never throws upward.
+  async upsert(names){
+    if(CONFIG.backend !== "supabase") return;
+    const rows = [...new Set((names||[]).map(n=>(n||"").trim()).filter(Boolean))].map(n=>({name:n}));
+    if(!rows.length) return;
+    try{
+      const res = await fetch(SupabaseAdapter._url("cw_players?on_conflict=normalized_name"), {
+        method:"POST",
+        headers:{ ...SupabaseAdapter._h(), Prefer:"resolution=ignore-duplicates,return=minimal" },
+        body: JSON.stringify(rows)
+      });
+      if(!res.ok) console.warn("PlayerDirectory.upsert HTTP", res.status, await res.text());
+    }catch(e){ console.warn("PlayerDirectory.upsert failed:", e); }
+  }
+};
 
 /* ---------------------------------------------------------------
    2. UTILITIES
@@ -578,7 +630,9 @@ const state = {
   editing: null,
   setupPlayers: { whist:["","","",""], twist:["","","",""] },
   statFilter: "all",
-  statMode: "whist"              // which Hall of Fame dataset is showing
+  statFilterTwist: "all",
+  statMode: "whist",             // which Hall of Fame dataset is showing
+  knownPlayerNames: []           // shared roster, from cw_players (or cache)
 };
 
 async function boot(){
@@ -591,6 +645,8 @@ async function boot(){
   }catch(e){
     console.warn("Boot storage read failed — starting fresh:", e);
   }
+  try{ state.knownPlayerNames = (await PlayerDirectory.list()) || []; }
+  catch(e){ console.warn("PlayerDirectory boot read failed:", e); state.knownPlayerNames = []; }
   wireTabs();
   render();
 }
@@ -681,10 +737,12 @@ wireReorder(mode);
   wireNameSuggest(mode);
 }
 // All player names that have ever played (trimmed, de-duped case-insensitively,
-// pooled across both Whist and Twist games + whichever game is in progress).
+// pooled across the shared cw_players directory + both Whist and Twist games
+// + whichever game is in progress).
 function allKnownNames(){
   const seen = new Map();
   const add = nm => { const t=(nm||"").trim(); if(!t) return; const k=t.toLowerCase(); if(!seen.has(k)) seen.set(k,t); };
+  (state.knownPlayerNames||[]).forEach(add);
   ["whist","twist"].forEach(mode=>{
     (state.games[mode]||[]).forEach(g=> g.players.forEach(add));
     if(state.active && state.active[mode]) state.active[mode].players.forEach(add);
@@ -693,6 +751,8 @@ function allKnownNames(){
 }
 
 // Type-to-filter dropdown under each name field, fed by allKnownNames().
+// Only opens once at least one character has been typed — with a roster
+// that grows over time, showing the full list on focus alone gets unwieldy.
 function wireNameSuggest(mode){
   const known = allKnownNames();
   if(!known.length) return;
@@ -702,6 +762,7 @@ function wireNameSuggest(mode){
     if(!box) return;
     const renderSug = ()=>{
       const q = inp.value.trim().toLowerCase();
+      if(!q){ box.hidden = true; box.innerHTML = ""; return; }   // require >=1 letter
       const others = state.setupPlayers[mode].map((n,idx)=> idx===i?null:(n||"").trim().toLowerCase()).filter(Boolean);
       const matches = known.filter(n=>{
         const lo = n.toLowerCase();
@@ -791,6 +852,10 @@ function startGame(mode){
   const g = newGame(names, dealer, settings, mode);
   state.active[mode] = g;
   Storage.setActive(mode, g);
+  // Grow the shared roster — locally right away (snappy autocomplete),
+  // and persist to cw_players in the background (best-effort, never blocks).
+  names.forEach(n=>{ if(!state.knownPlayerNames.includes(n)) state.knownPlayerNames.push(n); });
+  PlayerDirectory.upsert(names);
   render();
 }
 
@@ -1270,7 +1335,7 @@ function viewStats(){
   const sm = state.statMode || "whist";
   const modeSeg = `<div class="seg">
     <button class="btn sm ghost segbtn" data-sm="whist" aria-pressed="${sm==='whist'}">Whist</button>
-    <button class="btn sm ghost segbtn" data-sm="twist" aria-pressed="${sm==='twist'}">Twist;</button>
+    <button class="btn sm ghost segbtn" data-sm="twist" aria-pressed="${sm==='twist'}">Twist</button>
   </div>`;
   return sm==="twist" ? viewStatsTwist(modeSeg) : viewStatsWhist(modeSeg);
 }
@@ -1536,14 +1601,16 @@ function viewStatsWhist(modeSeg){
     const ndAvg     = p.nonDealerRounds ? (p.nonDealerPts/p.nonDealerRounds).toFixed(1) : '–';
     const fav       = favSuitOf(p);
     const favTxt    = fav ? `${suitSym[fav.suit]} fave (${fav.picks} picks, ${Math.round(fav.made/fav.picks*100)}% made)` : 'no clear favourite';
+    const hbPct     = pct(p.trumpsPicked, p.rounds);
+    const zbPct     = pct(p.nilBids, p.rounds);
     return `<li>
       <span class="rk">${i+1}</span>
       <span>
         <span class="nm">${esc(p.name)}</span><br>
-        <span class="meta">${p.games} games · ${winPct}% win · avg ${avg} · best game ${p.bestGame} · streak ${p.bestStreak||0}</span><br>
-        <span class="meta">${conPct}% contracts · ${trkPct}% tricks · ${bpc} bid/card</span><br>
-        <span class="meta">${p.overbids} overbids (${p.minRaises} spite) · trumps ${p.trumpsPicked} (${trMake}% made) · nil ${p.nilMade}/${p.nilBids}</span><br>
-        <span class="meta">finish avg ${avgFinish} · bust ${bustPct}% (miss ${missAvg}) · ${tendency}</span><br>
+        <span class="meta">${p.games} games · ${winPct}% match win · avg ${avg} · best game ${p.bestGame} · streak ${p.bestStreak||0}</span><br>
+        <span class="meta">${conPct}% contract win (${p.contracts} made) · ${trkPct}% tricks won (${p.tricksWon} all-time) · ${bpc} bid/card</span><br>
+        <span class="meta">highest bidder ${hbPct}% (${p.trumpsPicked}/${p.rounds}, ${trMake}% made) · zero-bid ${zbPct}% (${p.nilMade}/${p.nilBids} made)</span><br>
+        <span class="meta">${p.overbids} overbids (${p.minRaises} spite) · finish avg ${avgFinish} · bust ${bustPct}% (miss ${missAvg}) · ${tendency}</span><br>
         <span class="meta">dealing ${dAvg} vs ${ndAvg} non-deal · trumps ${favTxt}</span>
       </span>
       <span class="w">${p.wins}</span>
@@ -1570,13 +1637,21 @@ function viewStatsWhist(modeSeg){
     <section class="panel"><h2>Recent games</h2><ul class="hof">${recent}</ul></section>`;
 }
 
-/* ---- Twist stats (drinks, tracked separately) ---- */
-function computeStatsTwist(games){
-  const fin = games.filter(g=>g.finishedAt);
+/* ---- Twist stats (drinks, tracked separately, same depth as Whist) ---- */
+function computeStatsTwist(games, countFilter){
+  let fin = games.filter(g=>g.finishedAt);
+  const counts = [...new Set(fin.map(g=>g.players.length))].sort((a,b)=>a-b);
+  if(countFilter && countFilter!=="all") fin = fin.filter(g=>g.players.length===+countFilter);
+
   const byName = {};
   const ensure = n => byName[n] || (byName[n]={
     name:n, games:0, wins:0, points:0, bestGame:0,
-    rounds:0, contracts:0, best:0, drinksDown:0, drinksGiven:0
+    rounds:0, contracts:0, busts:0,
+    tricksWon:0, tricksAvail:0, bidSum:0, cardSum:0,
+    overbids:0, minRaises:0, trumpsPicked:0, trumpsMade:0,
+    nilBids:0, nilMade:0, bestHand:0, missMarginSum:0,
+    finishSum:0, bestStreak:0,
+    drinksDown:0, drinksGiven:0
   });
   let bigRound = {val:-1,name:null};
 
@@ -1584,24 +1659,43 @@ function computeStatsTwist(games){
     const t = totals(g);
     const ld = leaders(g);
     const dr = drinkTotals(g);
+    const n = g.players.length;
 
     g.players.forEach((nm,i)=>{
       const s = ensure(nm);
       s.games++; s.points += t[i]; s.drinksDown += dr[i];
       if(ld.winners.includes(i)) s.wins++;
       if(t[i] > s.bestGame) s.bestGame = t[i];
+      s.finishSum += 1 + t.filter(v=>v>t[i]).length;
     });
 
     g.rounds.forEach(r=>{
       if(!r.recorded) return;
+      const hb = highestBidder(g, r);
       g.players.forEach((nm,i)=>{
-        if(r.bids[i]==null || r.tricks[i]==null) return;
+        const bid = r.bids[i], tr = r.tricks[i];
+        if(bid==null || tr==null) return;
         const s = ensure(nm);
         s.rounds++;
-        const rs = roundScore(r.bids[i], r.tricks[i], g.settings);
-        if(rs > s.best) s.best = rs;
+        s.tricksWon += tr; s.tricksAvail += r.cards;
+        s.bidSum += bid;   s.cardSum += r.cards;
+        const rs = roundScore(bid, tr, g.settings);
+        if(rs > s.bestHand) s.bestHand = rs;
         if(rs > bigRound.val) bigRound = {val:rs, name:nm};
-        if(r.bids[i]===r.tricks[i]) s.contracts++;
+        if(bid===tr) s.contracts++; else { s.busts++; s.missMarginSum += Math.abs(bid-tr); }
+        if(bid===0){ s.nilBids++; if(tr===0) s.nilMade++; }
+        if(i===hb){ s.trumpsPicked++; if(bid===tr) s.trumpsMade++; }
+      });
+      let runMax = -1;
+      bidOrder(r, n).forEach((pi,k)=>{
+        const b = r.bids[pi];
+        if(b==null) return;
+        if(k>0 && runMax>=0 && b>runMax){
+          const s = ensure(g.players[pi]);
+          s.overbids++;
+          if(b - runMax === 1) s.minRaises++;
+        }
+        if(b > runMax) runMax = b;
       });
       (r.giveTo||[]).forEach((target, giverIdx)=>{
         if(target!=null && r.bids[giverIdx]===r.tricks[giverIdx]){
@@ -1611,21 +1705,39 @@ function computeStatsTwist(games){
     });
   });
 
+  const chron = [...fin].sort((a,b)=> new Date(a.finishedAt) - new Date(b.finishedAt));
+  const curStreak = {};
+  chron.forEach(g=>{
+    const ld = leaders(g);
+    const winSet = new Set(ld.winners.map(i=>g.players[i]));
+    g.players.forEach(nm=>{
+      const s = ensure(nm);
+      if(winSet.has(nm)){ curStreak[nm] = (curStreak[nm]||0)+1; if(curStreak[nm] > s.bestStreak) s.bestStreak = curStreak[nm]; }
+      else curStreak[nm] = 0;
+    });
+  });
+
   const players = Object.values(byName).sort((a,b)=>
     b.wins-a.wins ||
     (b.points/Math.max(1,b.games)) - (a.points/Math.max(1,a.games)) ||
     a.name.localeCompare(b.name));
   const totalRounds = fin.reduce((a,g)=>a+g.rounds.filter(r=>r.recorded).length,0);
   const totalDrinks = players.reduce((a,p)=>a+p.drinksDown,0);
-  return { players, gamesPlayed:fin.length, totalRounds, totalDrinks, bigRound, recent:fin.slice(-6).reverse() };
+  return { players, counts, gamesPlayed:fin.length, totalRounds, totalDrinks, bigRound, recent:fin.slice(-6).reverse() };
 }
 
 function viewStatsTwist(modeSeg){
-  const st = computeStatsTwist(state.games.twist);
+  const cf = state.statFilterTwist || "all";
+  const st = computeStatsTwist(state.games.twist, cf);
+  const allCounts = computeStatsTwist(state.games.twist, "all").counts;
+  const seg = `<div class="seg">
+    <button class="btn sm ghost segbtn" data-cft="all" aria-pressed="${cf==='all'}">All tables</button>
+    ${allCounts.map(c=>`<button class="btn sm ghost segbtn" data-cft="${c}" aria-pressed="${cf===String(c)}">${c}-player</button>`).join("")}
+  </div>`;
 
   if(st.gamesPlayed===0){
-    return `<section class="panel"><h2>Hall of Fame</h2>${modeSeg}
-      <div class="empty">No Twist games on the books yet.<br>Finish a game and the drink tally fills in here.</div>
+    return `<section class="panel"><h2>Hall of Fame</h2>${modeSeg}${seg}
+      <div class="empty">No Twist games${cf!=='all'?` for ${cf}-player tables`:''} on the books yet.<br>Finish a game and the drink tally fills in here.</div>
     </section>`;
   }
 
@@ -1637,24 +1749,36 @@ function viewStatsTwist(modeSeg){
     <div class="stat"><div class="big">${st.bigRound.val}</div><div class="lbl">Best hand · ${esc(st.bigRound.name||'')}</div></div>
   </div>`;
 
+  const MIN = 8;
   const heaviest = leaderOf(st.players, p=>p.drinksDown);
   const generous = leaderOf(st.players, p=>p.drinksGiven);
-  const sharp    = leaderOf(st.players, p=>pct(p.contracts,p.rounds), 8);
-  const awardLi  = (label, a)=> a && a.val>0 ? `<li><span>${label}</span><span class="pts">${esc(a.name)} · ${a.val}${label==='Sharpest shooter'?'%':''}</span></li>` : '';
-  const awards = `<ul class="standings" style="max-width:none">
-    ${awardLi('Heaviest pour', heaviest)}
-    ${awardLi('Most generous', generous)}
-    ${awardLi('Sharpest shooter', sharp)}
-  </ul>`;
+  const sharp    = leaderOf(st.players, p=>pct(p.contracts,p.rounds), MIN);
+  const bustProne= leaderOf(st.players, p=>pct(p.busts,p.rounds), MIN);
+  const streakStar = leaderOf(st.players, p=> p.bestStreak||0);
+  const A=[];
+  const add=(label, ok, html)=>{ if(ok) A.push(`<li><span>${label}</span><span class="pts">${html}</span></li>`); };
+  add('Heaviest pour',      heaviest && heaviest.val>0,  heaviest && `${esc(heaviest.name)} · &#127866;${heaviest.val}`);
+  add('Most generous',      generous && generous.val>0,  generous && `${esc(generous.name)} · &#127866;${generous.val} handed out`);
+  add('Sharpest shooter',   sharp && sharp.val>0,        sharp && `${esc(sharp.name)} · ${sharp.val}%`);
+  add('Bust-prone',         bustProne && bustProne.val>0,bustProne && `${esc(bustProne.name)} · ${bustProne.val}%`);
+  add('Longest win streak', streakStar && streakStar.val>1, streakStar && `${esc(streakStar.name)} · ${streakStar.val} in a row`);
+  const awards = `<ul class="standings" style="max-width:none">${A.join("")}</ul>`;
 
   const hof = st.players.map((p,i)=>{
-    const avg = (p.points/Math.max(1,p.games)).toFixed(0);
-    const acc = p.rounds? Math.round(p.contracts/p.rounds*100):0;
+    const winPct    = pct(p.wins, p.games);
+    const conPct    = pct(p.contracts, p.rounds);
+    const trkPct    = pct(p.tricksWon, p.tricksAvail);
+    const hbPct     = pct(p.trumpsPicked, p.rounds);
+    const zbPct     = pct(p.nilBids, p.rounds);
+    const bustPct   = pct(p.busts, p.rounds);
+    const avg       = (p.points/Math.max(1,p.games)).toFixed(0);
     return `<li>
       <span class="rk">${i+1}</span>
       <span>
         <span class="nm">${esc(p.name)}</span><br>
-        <span class="meta">${p.games} games · avg ${avg} · ${acc}% contracts · best game ${p.bestGame}</span><br>
+        <span class="meta">${p.games} games · ${winPct}% match win · avg ${avg} · best game ${p.bestGame} · streak ${p.bestStreak||0}</span><br>
+        <span class="meta">${conPct}% contract win (${p.contracts} made) · ${trkPct}% tricks won (${p.tricksWon} all-time)</span><br>
+        <span class="meta">highest bidder ${hbPct}% · zero-bid ${zbPct}% · bust ${bustPct}%</span><br>
         <span class="meta">&#127866; ${p.drinksDown} downed · ${p.drinksGiven} handed out</span>
       </span>
       <span class="w">${p.wins}</span>
@@ -1670,8 +1794,9 @@ function viewStatsTwist(modeSeg){
 
   return `
     <section class="panel"><h2>Hall of Fame</h2>
-      <div class="sub">All-time record · Contract Twist (tracked separately from Whist).</div>
+      <div class="sub">All-time record · Contract Twist (tracked separately from Whist) · ${cf==='all'?'every table':cf+'-player games'}.</div>
       ${modeSeg}
+      ${seg}
       <div style="margin-top:14px">${stats}</div>
       <h3 style="font-family:'Cinzel';font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--ash);margin:8px 0 6px">Table awards</h3>
       ${awards}
@@ -1682,6 +1807,7 @@ function viewStatsTwist(modeSeg){
 
 function wireStats(){
   $$('#app [data-cf]').forEach(b=> b.onclick = ()=>{ state.statFilter = b.dataset.cf; render(); });
+  $$('#app [data-cft]').forEach(b=> b.onclick = ()=>{ state.statFilterTwist = b.dataset.cft; render(); });
   $$('#app [data-sm]').forEach(b=> b.onclick = ()=>{ state.statMode = b.dataset.sm; render(); });
 }
 
