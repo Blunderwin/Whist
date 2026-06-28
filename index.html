@@ -325,7 +325,36 @@
   .hof .nm{font-weight:600}
   .hof .meta{font-size:12px;color:var(--ash)}
   .hof .w{font-family:"Space Mono";color:var(--head)}
+  .hof-row{transition:background .15s}
+  .hof-row:hover{background:rgba(199,154,59,.08)}
+  .hof-row .chev{color:var(--gold-dim);font-size:13px}
   .empty{color:var(--ash);text-align:center;font-style:italic;padding:24px 0}
+
+  /* ---------- Stat graphs (hand-rolled SVG bar/line charts) ---------- */
+  .chart-card{background:var(--mid);border:1px solid var(--line);border-radius:12px;padding:14px 14px 6px;margin:10px 0 16px}
+  .chart-card .ctitle{font-family:"Cinzel";font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ash);margin-bottom:6px}
+  .chart-card svg{display:block;width:100%}
+  .trend-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:14px}
+  .trend-row .lbl{font-family:"Cinzel";font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ash)}
+
+  /* ---------- Player picker (select-to-view, replaces showing everyone) ---------- */
+  .picker-hint{font-size:13px;color:var(--ash);margin:2px 0 10px}
+
+  /* ---------- Compare players ---------- */
+  .compare-toggle{display:flex;justify-content:flex-end;margin:-2px 0 4px}
+  .chip-row{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 4px}
+  .chip{font-family:"Space Mono";font-size:12.5px;padding:8px 14px;border-radius:999px;
+    border:1px solid var(--line);background:#1b140d;color:var(--ash);transition:.15s}
+  .chip[aria-pressed="true"]{background:var(--gold);color:#241b13;border-color:var(--gold);font-weight:700}
+  .chip[disabled]{opacity:.35;cursor:not-allowed}
+  .compare-empty{color:var(--ash);font-style:italic;font-size:13px;margin:10px 0}
+  .compare-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:14px 0 6px}
+  .compare-card{background:var(--mid);border:1px solid var(--line);border-radius:12px;padding:12px;border-top:3px solid var(--swatch,var(--gold))}
+  .compare-card h4{font-family:"Cinzel";font-size:12.5px;color:var(--head);margin:0 0 8px;letter-spacing:.04em;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .compare-card .crow{display:flex;justify-content:space-between;gap:8px;font-size:12px;padding:4.5px 0;border-bottom:1px solid var(--line);color:var(--ash)}
+  .compare-card .crow:last-child{border-bottom:none}
+  .compare-card .crow b{color:var(--head);font-family:"Space Mono";font-weight:600}
 
   .seg{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 4px}
   .seg .segbtn{flex:0 0 auto}
@@ -721,7 +750,9 @@ const state = {
   statMode: "whist",             // which Hall of Fame dataset is showing
   knownPlayerNames: [],          // shared roster, from cw_players (or cache)
   playerDetail: null,            // name string while drilling into a player
-  h2hPair: null                  // {a, b} for head-to-head lookup overlay
+  h2hPair: null,                 // {a, b} for head-to-head lookup overlay
+  compareOn: false,              // whether the "Compare players" picker is open
+  compareSel: []                 // names selected for comparison (per current dataset)
 };
 
 async function boot(){
@@ -1460,6 +1491,83 @@ function leaderOf(players, valFn, minRounds=0){
   return best ? {name:best.name, val:bv} : null;
 }
 
+/* ---- Hand-rolled SVG charts (no charting lib — keeps this a single file) ----
+   Both read straight off CSS custom properties so they inherit the
+   Stout & Cards palette automatically. */
+
+// Horizontal ranked bar chart — one row per item. Used for the leaderboard
+// overview and for the player-comparison panel.
+function barChartSVG(items, opts={}){
+  if(!items.length) return '';
+  const W = opts.width || 540;
+  const barH = opts.barH || 20;
+  const gap = 9;
+  const leftW = opts.leftW || 96;
+  const rightW = opts.rightW || 46;
+  const plotW = Math.max(40, W - leftW - rightW);
+  const max = opts.max || Math.max(1, ...items.map(it=>Math.abs(it.value)));
+  const H = items.length*(barH+gap) + gap;
+  const fmt = opts.valFmt || (v=>v);
+  const rows = items.map((it,i)=>{
+    const y = gap + i*(barH+gap);
+    const w = items[i].value<=0 ? 0 : Math.max(2,(it.value/max)*plotW);
+    const fill = it.color || 'var(--gold)';
+    return `
+      <text x="${leftW-8}" y="${y+barH*0.7}" text-anchor="end" font-family="Space Mono" font-size="11.5" style="fill:var(--head)">${esc(it.label)}</text>
+      <rect x="${leftW}" y="${y}" width="${plotW}" height="${barH}" rx="5" style="fill:rgba(239,226,196,.06)"/>
+      <rect x="${leftW}" y="${y}" width="${w}" height="${barH}" rx="5" style="fill:${fill}"/>
+      <text x="${leftW+plotW+8}" y="${y+barH*0.7}" font-family="Space Mono" font-size="11.5" style="fill:var(--gold)">${esc(String(fmt(it.value)))}</text>`;
+  }).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${esc(opts.label||'chart')}">${rows}</svg>`;
+}
+
+// Simple line + dot trend sparkline — a player's score across their games,
+// in the order those games were recorded.
+function sparklineSVG(values, opts={}){
+  if(!values || values.length<2) return `<div class="sub" style="font-style:italic">Not enough games yet for a trend line.</div>`;
+  const W = opts.width || 320, H = opts.height || 72, pad = 10;
+  const max = Math.max(...values), min = Math.min(...values);
+  const range = Math.max(1, max-min);
+  const stepX = (W-pad*2)/(values.length-1);
+  const pts = values.map((v,i)=> [pad+i*stepX, H-pad-((v-min)/range)*(H-pad*2)]);
+  const path = pts.map((p,i)=> (i===0?'M':'L')+p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ');
+  const dots = pts.map((p,i)=> i===pts.length-1
+    ? `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="4" style="fill:var(--gold)"/>`
+    : `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="2.4" style="fill:var(--ash)"/>`).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="score trend">
+    <path d="${path}" fill="none" style="stroke:var(--gold-dim);stroke-width:2"/>
+    ${dots}
+  </svg>`;
+}
+
+// Shared "compare players" panel: chip picker (toggle, max 4) + per-metric
+// bar charts + a compact stat card per selected player. `metrics` is
+// [{label, fmt, fn(player)->number}], `swatches` cycles accent colors.
+const COMPARE_MAX = 4;
+const COMPARE_SWATCHES = ['var(--gold)','var(--ruby)','#7a9a4e','#5d8aa8'];
+function comparePickerHTML(allPlayers, sel){
+  const chips = allPlayers.map(p=>{
+    const on = sel.includes(p.name);
+    const full = !on && sel.length>=COMPARE_MAX;
+    return `<button type="button" class="chip" data-cmp="${esc(p.name)}" aria-pressed="${on}" ${full?'disabled':''}>${esc(p.name)}</button>`;
+  }).join('');
+  return `<div class="chip-row" id="cmpChips">${chips}</div>`;
+}
+function comparePanelHTML(allPlayers, sel, metrics, mode){
+  if(sel.length<2) return `<div class="compare-empty">Pick at least 2 players above to compare them head-to-head.</div>`;
+  const ps = sel.map(n=>allPlayers.find(p=>p.name===n)).filter(Boolean);
+  const charts = metrics.map(m=>{
+    const items = ps.map((p,i)=>({label:p.name, value:m.fn(p), color:COMPARE_SWATCHES[i%COMPARE_SWATCHES.length]}));
+    return `<div class="chart-card"><div class="ctitle">${esc(m.label)}</div>${barChartSVG(items,{valFmt:m.fmt,label:m.label})}</div>`;
+  }).join('');
+  const cards = ps.map((p,i)=>`
+    <div class="compare-card" style="--swatch:${COMPARE_SWATCHES[i%COMPARE_SWATCHES.length]}">
+      <h4>${esc(p.name)}</h4>
+      ${metrics.map(m=>`<div class="crow"><span>${esc(m.label)}</span><b>${esc(String(m.fmt(m.fn(p))))}</b></div>`).join('')}
+    </div>`).join('');
+  return `${charts}<div class="compare-cards">${cards}</div>`;
+}
+
 function viewStats(){
   const sm = state.statMode || "whist";
   const modeSeg = `<div class="seg">
@@ -1755,41 +1863,29 @@ function viewStatsWhist(modeSeg){
   add('Longest win streak', streakStar && streakStar.val>1,      streakStar && `${esc(streakStar.name)} · ${streakStar.val} in a row`);
   const awards = `<ul class="standings" style="max-width:none">${A.join("")}</ul>`;
 
+  // Overview graph — ranks every player by average score per game, so the
+  // shape of the table is visible at a glance without reading anyone's
+  // full profile.
+  const overviewItems = [...st.players]
+    .sort((a,b)=> (b.points/Math.max(1,b.games)) - (a.points/Math.max(1,a.games)))
+    .map(p=>({label:p.name, value: Math.round(p.points/Math.max(1,p.games))}));
+  const overviewChart = `<div class="chart-card"><div class="ctitle">Average score per game</div>${barChartSVG(overviewItems,{valFmt:v=>v,label:'average score'})}</div>`;
+
+  // Compact leaderboard — name, games, avg, best, streak only. Tap a row
+  // to drill into that player's full profile (built further below); the
+  // detailed bidding/trump/dealer breakdown no longer dumps for everyone
+  // by default.
   const hof = st.players.map((p,i)=>{
-    const winPct    = pct(p.wins, p.games);
-    const conPct    = pct(p.contracts, p.rounds);
-    const trkPct    = pct(p.tricksWon, p.tricksAvail);
-    const bpc       = p.cardSum ? (p.bidSum/p.cardSum).toFixed(2) : '0.00';
-    const avg       = (p.points/Math.max(1,p.games)).toFixed(0);
-    const trMake    = pct(p.trumpsMade, p.trumpsPicked);
-    const avgFinish = p.games ? (p.finishSum/p.games).toFixed(1) : '–';
-    const bustPct   = pct(p.busts, p.rounds);
-    const missAvg   = p.busts ? (p.missMarginSum/p.busts).toFixed(1) : '0.0';
-    const bidAcc    = p.rounds ? (p.bidErrSum/p.rounds).toFixed(2) : '–';
-    const diff      = p.rounds ? (p.bidSum-p.tricksWon)/p.rounds : 0;
-    const tendency  = Math.abs(diff)<0.05 ? 'bids true' : (diff>0 ? `overbids ${diff.toFixed(2)}/hand` : `sandbags ${Math.abs(diff).toFixed(2)}/hand`);
-    const dAvg      = p.dealerRounds ? (p.dealerPts/p.dealerRounds).toFixed(1) : '–';
-    const ndAvg     = p.nonDealerRounds ? (p.nonDealerPts/p.nonDealerRounds).toFixed(1) : '–';
-    const fav       = favSuitOf(p);
-    const favTxt    = fav ? `${suitSym[fav.suit]} fave (${fav.picks} picks, ${Math.round(fav.made/fav.picks*100)}% made)` : 'no clear favourite';
-    const hbPct     = pct(p.trumpsPicked, p.rounds);
-    const zbPct     = pct(p.nilBids, p.rounds);
-    const streakTxt = p.activeStreak > 1 ? `🔥 ${p.activeStreak} straight` : p.activeStreak < -1 ? `❄️ ${Math.abs(p.activeStreak)} down` : '';
-    const luckyTxt  = p.luckyCount ? `lucky at ${p.luckyCount.count}p (${Math.round(p.luckyCount.rate*100)}% win)` : '';
-    const impTxt    = p.improvement!=null ? (p.improvement>0.5?`📈 +${p.improvement.toFixed(1)} recent`:(p.improvement<-0.5?`📉 ${p.improvement.toFixed(1)} recent`:'')) : '';
+    const avg = (p.points/Math.max(1,p.games)).toFixed(0);
+    const streakTxt = p.activeStreak > 1 ? `🔥 ${p.activeStreak}` : p.activeStreak < -1 ? `❄️ ${Math.abs(p.activeStreak)}` : '';
     return `<li class="hof-row" data-player="${esc(p.name)}" style="cursor:pointer">
       <span class="rk">${i+1}</span>
       <span>
-        <span class="nm">${esc(p.name)}</span>${streakTxt?` <span style="font-size:11px">${streakTxt}</span>`:''}${luckyTxt?`<br><span class="meta">${luckyTxt}${impTxt?' · '+impTxt:''}</span>`:(impTxt?`<br><span class="meta">${impTxt}</span>`:'')}
-        <br><span class="meta">${p.games} games · ${winPct}% match win · avg ${avg} · best game ${p.bestGame} · streak ${p.bestStreak||0}</span><br>
-        <span class="meta">${conPct}% contract win (${p.contracts} made) · ${trkPct}% tricks won · bid acc ${bidAcc}</span><br>
-        <span class="meta">highest bidder ${hbPct}% (${p.trumpsPicked}/${p.rounds}, ${trMake}% made) · zero-bid ${zbPct}% (${p.nilMade}/${p.nilBids} made)</span><br>
-        <span class="meta">${p.overbids} overbids (${p.minRaises} spite) · finish avg ${avgFinish} · bust ${bustPct}% (miss ${missAvg}) · ${tendency}</span><br>
-        <span class="meta">dealing ${dAvg} vs ${ndAvg} non-deal · trumps ${favTxt}</span><br>
-        <span class="meta" style="color:var(--gold-dim);font-size:11px">Tap for full profile &amp; head-to-head</span>
+        <span class="nm">${esc(p.name)}</span>${streakTxt?` <span style="font-size:11px">${streakTxt}</span>`:''}
+        <br><span class="meta">${p.games} game${p.games===1?'':'s'} · avg ${avg} · best ${p.bestGame}</span>
       </span>
       <span class="w">${p.wins}</span>
-      <span class="meta">wins</span>
+      <span class="meta">wins <span class="chev">&rsaquo;</span></span>
     </li>`;
   }).join("");
 
@@ -1799,13 +1895,50 @@ function viewStatsWhist(modeSeg){
     return `<li><span class="rk">&#9824;</span><span><span class="nm">${champ}</span><br><span class="meta">${g.players.length}p · ${esc(g.players.join(', '))}</span></span><span class="w">${top}</span><span class="meta">${d.toLocaleDateString()}</span></li>`;
   }).join("");
 
-  // Player detail view
+  // Compare players — pick 2–4 from the current dataset, see them side by
+  // side with the same bar-chart treatment as the overview.
+  const compareMetrics = [
+    {label:'Win %',        fn:p=>pct(p.wins,p.games),               fmt:v=>v+'%'},
+    {label:'Avg score',    fn:p=>Math.round(p.points/Math.max(1,p.games)), fmt:v=>v},
+    {label:'Contract %',   fn:p=>pct(p.contracts,p.rounds),         fmt:v=>v+'%'},
+    {label:'Bust %',       fn:p=>pct(p.busts,p.rounds),             fmt:v=>v+'%'},
+    {label:'Tricks won %', fn:p=>pct(p.tricksWon,p.tricksAvail),    fmt:v=>v+'%'}
+  ];
+  const sectionHead = (title, extraBtn)=> `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin:18px 0 6px">
+    <h3 style="font-family:'Cinzel';font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--ash);margin:0">${title}</h3>
+    ${extraBtn||''}
+  </div>`;
+  const playersBlock = state.compareOn
+    ? `${sectionHead('Compare players', '<button class="btn ghost sm" id="cmpToggle">Back to list</button>')}
+       <div class="picker-hint">Tap up to ${COMPARE_MAX} players to line them up side by side.</div>
+       ${comparePickerHTML(st.players, state.compareSel)}
+       ${comparePanelHTML(st.players, state.compareSel, compareMetrics, 'whist')}`
+    : `${sectionHead('Players', st.players.length>=2 ? '<button class="btn ghost sm" id="cmpToggle">Compare players</button>' : '')}
+       <div class="picker-hint">Tap a player to see their full profile.</div>
+       <ul class="hof" id="hofList">${hof}</ul>`;
+
+  // Player detail view — everything that used to be dumped into every row
+  // of the leaderboard now lives here, behind a tap, plus a score trend.
   let detailSection = '';
   if(state.playerDetail){
     const pd = st.players.find(p=>p.name===state.playerDetail);
     if(pd){
-      const pct2=(a,b)=>b?Math.round(a/b*100):0;
-      const avg2=(pd.points/Math.max(1,pd.games)).toFixed(0);
+      const avg2       = (pd.points/Math.max(1,pd.games)).toFixed(0);
+      const conPct     = pct(pd.contracts, pd.rounds);
+      const trkPct     = pct(pd.tricksWon, pd.tricksAvail);
+      const trMake     = pct(pd.trumpsMade, pd.trumpsPicked);
+      const avgFinish  = pd.games ? (pd.finishSum/pd.games).toFixed(1) : '–';
+      const bustPct    = pct(pd.busts, pd.rounds);
+      const missAvg    = pd.busts ? (pd.missMarginSum/pd.busts).toFixed(1) : '0.0';
+      const bidAccLabel= pd.rounds ? (pd.bidErrSum/pd.rounds).toFixed(2) : '–';
+      const diff       = pd.rounds ? (pd.bidSum-pd.tricksWon)/pd.rounds : 0;
+      const tendency   = Math.abs(diff)<0.05 ? 'bids true' : (diff>0 ? `overbids ${diff.toFixed(2)}/hand` : `sandbags ${Math.abs(diff).toFixed(2)}/hand`);
+      const dAvg       = pd.dealerRounds ? (pd.dealerPts/pd.dealerRounds).toFixed(1) : '–';
+      const ndAvg      = pd.nonDealerRounds ? (pd.nonDealerPts/pd.nonDealerRounds).toFixed(1) : '–';
+      const fav        = favSuitOf(pd);
+      const favTxt     = fav ? `${suitSym[fav.suit]} (${fav.picks} picks, ${Math.round(fav.made/fav.picks*100)}% made)` : 'no clear favourite';
+      const hbPct      = pct(pd.trumpsPicked, pd.rounds);
+      const zbPct      = pct(pd.nilBids, pd.rounds);
       const countRows = Object.keys(pd.gamesByCount).sort((a,b)=>+a-+b).map(nc=>{
         const g=pd.gamesByCount[nc], w=pd.winsByCount[nc]||0;
         return `<li><span>${nc}-player table</span><span class="pts">${w}W / ${g-w}L of ${g} · ${Math.round(w/g*100)}% win</span></li>`;
@@ -1818,7 +1951,6 @@ function viewStatsWhist(modeSeg){
       const streakLabel = pd.activeStreak>1?`🔥 ${pd.activeStreak} win streak`:pd.activeStreak<-1?`❄️ ${Math.abs(pd.activeStreak)} game slide`:'No streak';
       const luckyLabel = pd.luckyCount?`${pd.luckyCount.count}-player (${Math.round(pd.luckyCount.rate*100)}% win rate)`:'Not enough data';
       const impLabel = pd.improvement!=null?`${pd.improvement>0?'+':''}${pd.improvement.toFixed(1)} pts (recent ${pd.recentAvg.toFixed(0)} vs baseline ${pd.baselineAvg.toFixed(0)})`:'Need 6+ games';
-      const bidAccLabel = pd.rounds?(pd.bidErrSum/pd.rounds).toFixed(2):'–';
       detailSection = `<section class="panel" id="playerDetail">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
           <button class="btn ghost sm" id="closeDetail">&larr; Back</button>
@@ -1835,6 +1967,24 @@ function viewStatsWhist(modeSeg){
           <div class="stat"><div class="big" style="font-size:18px">${luckyLabel}</div><div class="lbl">Lucky table size</div></div>
           <div class="stat"><div class="big" style="font-size:18px">${impLabel}</div><div class="lbl">Most improved?</div></div>
         </div>
+
+        <div class="trend-row"><span class="lbl">Score trend</span><span class="sub" style="margin:0">${pd.allTimePoints.length} game${pd.allTimePoints.length===1?'':'s'} tracked</span></div>
+        <div class="chart-card">${sparklineSVG(pd.allTimePoints)}</div>
+
+        <h3 style="font-family:'Cinzel';font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--ash);margin:14px 0 6px">Bidding &amp; play</h3>
+        <ul class="standings" style="max-width:none">
+          <li><span>Contracts made</span><span class="pts">${conPct}% (${pd.contracts}/${pd.rounds})</span></li>
+          <li><span>Busted</span><span class="pts">${bustPct}% · avg miss ${missAvg}</span></li>
+          <li><span>Bidding tendency</span><span class="pts">${tendency}</span></li>
+          <li><span>Zero bids</span><span class="pts">${zbPct}% (${pd.nilMade}/${pd.nilBids} made)</span></li>
+          <li><span>Overbids (spite)</span><span class="pts">${pd.overbids} (${pd.minRaises})</span></li>
+          <li><span>Highest bidder</span><span class="pts">${hbPct}% of hands · ${trMake}% made</span></li>
+          <li><span>Tricks won</span><span class="pts">${trkPct}%</span></li>
+          <li><span>Favourite trump</span><span class="pts">${favTxt}</span></li>
+          <li><span>Dealing vs not dealing</span><span class="pts">${dAvg} vs ${ndAvg} pts/hand</span></li>
+          <li><span>Average finish</span><span class="pts">${avgFinish}</span></li>
+        </ul>
+
         <h3 style="font-family:'Cinzel';font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--ash);margin:14px 0 6px">By table size</h3>
         <ul class="standings" style="max-width:none">${countRows||'<li style="color:var(--ash)">No games yet</li>'}</ul>
         <h3 style="font-family:'Cinzel';font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--ash);margin:14px 0 6px">Head-to-head record</h3>
@@ -1850,11 +2000,12 @@ function viewStatsWhist(modeSeg){
       ${modeSeg}
       ${seg}
       <div style="margin-top:14px">${stats}</div>
+      ${overviewChart}
       <h3 style="font-family:'Cinzel';font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--ash);margin:8px 0 6px">Table awards</h3>
       ${awards}
-      <ul class="hof" id="hofList">${hof}</ul>
+      ${playersBlock}
     </section>
-    <section class="panel" ${state.playerDetail?'style="display:none"':''}><h2>Recent games</h2><ul class="hof">${recent}</ul></section>`;
+    <section class="panel" ${(state.playerDetail||state.compareOn)?'style="display:none"':''}><h2>Recent games</h2><ul class="hof">${recent}</ul></section>`;
 }
 
 /* ---- Twist stats (drinks, tracked separately, same depth as Whist) ---- */
@@ -2028,30 +2179,25 @@ function viewStatsTwist(modeSeg){
   add('Longest win streak', streakStar && streakStar.val>1, streakStar && `${esc(streakStar.name)} · ${streakStar.val} in a row`);
   const awards = `<ul class="standings" style="max-width:none">${A.join("")}</ul>`;
 
+  // Overview graph — drinks poured per game, the signature Twist number.
+  const overviewItems = [...st.players]
+    .sort((a,b)=> (b.drinksDown/Math.max(1,b.games)) - (a.drinksDown/Math.max(1,a.games)))
+    .map(p=>({label:p.name, value: +(p.drinksDown/Math.max(1,p.games)).toFixed(1)}));
+  const overviewChart = `<div class="chart-card"><div class="ctitle">&#127866; Drinks per game</div>${barChartSVG(overviewItems,{valFmt:v=>v,label:'drinks per game'})}</div>`;
+
+  // Compact leaderboard — tap a row for the full drink/bid breakdown below.
   const hof = st.players.map((p,i)=>{
-    const winPct    = pct(p.wins, p.games);
-    const conPct    = pct(p.contracts, p.rounds);
-    const trkPct    = pct(p.tricksWon, p.tricksAvail);
-    const hbPct     = pct(p.trumpsPicked, p.rounds);
-    const zbPct     = pct(p.nilBids, p.rounds);
-    const bustPct   = pct(p.busts, p.rounds);
-    const avg       = (p.points/Math.max(1,p.games)).toFixed(0);
-    const dph       = p.games ? (p.drinksDown/p.games).toFixed(1) : '–';
-    const bidAcc    = p.rounds ? (p.bidErrSum/p.rounds).toFixed(2) : '–';
-    const streakTxt = p.activeStreak>1?`🔥 ${p.activeStreak} straight`:p.activeStreak<-1?`❄️ ${Math.abs(p.activeStreak)} down`:'';
-    const luckyTxt  = p.luckyCount?`lucky at ${p.luckyCount.count}p (${Math.round(p.luckyCount.rate*100)}% win)`:'';
+    const avg = (p.points/Math.max(1,p.games)).toFixed(0);
+    const dph = p.games ? (p.drinksDown/p.games).toFixed(1) : '–';
+    const streakTxt = p.activeStreak>1?`🔥 ${p.activeStreak}`:p.activeStreak<-1?`❄️ ${Math.abs(p.activeStreak)}`:'';
     return `<li class="hof-row" data-player="${esc(p.name)}" style="cursor:pointer">
       <span class="rk">${i+1}</span>
       <span>
-        <span class="nm">${esc(p.name)}</span>${streakTxt?` <span style="font-size:11px">${streakTxt}</span>`:''}${luckyTxt?`<br><span class="meta">${luckyTxt}</span>`:''}
-        <br><span class="meta">${p.games} games · ${winPct}% match win · avg ${avg} · best game ${p.bestGame} · streak ${p.bestStreak||0}</span><br>
-        <span class="meta">${conPct}% contract win (${p.contracts} made) · ${trkPct}% tricks won · bid acc ${bidAcc}</span><br>
-        <span class="meta">highest bidder ${hbPct}% · zero-bid ${zbPct}% · bust ${bustPct}%</span><br>
-        <span class="meta">&#127866; ${p.drinksDown} downed (${dph}/game) · ${p.drinksGiven} handed out · ${pct(p.dryRounds,p.rounds)}% dry hands · best dry run ${p.bestDryStreak}</span><br>
-        <span class="meta" style="color:var(--gold-dim);font-size:11px">Tap for full profile</span>
+        <span class="nm">${esc(p.name)}</span>${streakTxt?` <span style="font-size:11px">${streakTxt}</span>`:''}
+        <br><span class="meta">${p.games} game${p.games===1?'':'s'} · avg ${avg} · &#127866;${dph}/game</span>
       </span>
       <span class="w">${p.wins}</span>
-      <span class="meta">wins</span>
+      <span class="meta">wins <span class="chev">&rsaquo;</span></span>
     </li>`;
   }).join("");
 
@@ -2061,6 +2207,27 @@ function viewStatsTwist(modeSeg){
     return `<li><span class="rk">&#9824;</span><span><span class="nm">${champ}</span><br><span class="meta">${g.players.length}p · ${esc(g.players.join(', '))}</span></span><span class="w">${top}</span><span class="meta">${d.toLocaleDateString()}</span></li>`;
   }).join("");
 
+  // Compare players
+  const compareMetrics = [
+    {label:'Win %',         fn:p=>pct(p.wins,p.games),            fmt:v=>v+'%'},
+    {label:'Avg score',     fn:p=>Math.round(p.points/Math.max(1,p.games)), fmt:v=>v},
+    {label:'Drinks/game',   fn:p=>+(p.drinksDown/Math.max(1,p.games)).toFixed(1), fmt:v=>v},
+    {label:'Contract %',    fn:p=>pct(p.contracts,p.rounds),      fmt:v=>v+'%'},
+    {label:'Bust %',        fn:p=>pct(p.busts,p.rounds),          fmt:v=>v+'%'}
+  ];
+  const sectionHead = (title, extraBtn)=> `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin:18px 0 6px">
+    <h3 style="font-family:'Cinzel';font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--ash);margin:0">${title}</h3>
+    ${extraBtn||''}
+  </div>`;
+  const playersBlock = state.compareOn
+    ? `${sectionHead('Compare players', '<button class="btn ghost sm" id="cmpToggle">Back to list</button>')}
+       <div class="picker-hint">Tap up to ${COMPARE_MAX} players to line them up side by side.</div>
+       ${comparePickerHTML(st.players, state.compareSel)}
+       ${comparePanelHTML(st.players, state.compareSel, compareMetrics, 'twist')}`
+    : `${sectionHead('Players', st.players.length>=2 ? '<button class="btn ghost sm" id="cmpToggle">Compare players</button>' : '')}
+       <div class="picker-hint">Tap a player to see their full profile.</div>
+       <ul class="hof" id="hofList">${hof}</ul>`;
+
   // Twist player detail view
   let detailSection = '';
   if(state.playerDetail){
@@ -2069,6 +2236,12 @@ function viewStatsTwist(modeSeg){
       const avg2=(pd.points/Math.max(1,pd.games)).toFixed(0);
       const dph = pd.games?(pd.drinksDown/pd.games).toFixed(1):'–';
       const bidAcc = pd.rounds?(pd.bidErrSum/pd.rounds).toFixed(2):'–';
+      const conPct = pct(pd.contracts, pd.rounds);
+      const trkPct = pct(pd.tricksWon, pd.tricksAvail);
+      const hbPct  = pct(pd.trumpsPicked, pd.rounds);
+      const zbPct  = pct(pd.nilBids, pd.rounds);
+      const bustPct= pct(pd.busts, pd.rounds);
+      const dryPct = pct(pd.dryRounds, pd.rounds);
       const countRows = Object.keys(pd.gamesByCount).sort((a,b)=>+a-+b).map(nc=>{
         const g=pd.gamesByCount[nc], w=pd.winsByCount[nc]||0;
         return `<li><span>${nc}-player table</span><span class="pts">${w}W / ${g-w}L of ${g} · ${Math.round(w/g*100)}% win</span></li>`;
@@ -2093,6 +2266,21 @@ function viewStatsTwist(modeSeg){
           <div class="stat"><div class="big" style="font-size:18px">${impLabel}</div><div class="lbl">Most improved?</div></div>
           <div class="stat"><div class="big">${pd.bestDryStreak}</div><div class="lbl">Best dry-hand streak</div></div>
         </div>
+
+        <div class="trend-row"><span class="lbl">Score trend</span><span class="sub" style="margin:0">${pd.allTimePoints.length} game${pd.allTimePoints.length===1?'':'s'} tracked</span></div>
+        <div class="chart-card">${sparklineSVG(pd.allTimePoints)}</div>
+
+        <h3 style="font-family:'Cinzel';font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--ash);margin:14px 0 6px">Bidding &amp; drinking</h3>
+        <ul class="standings" style="max-width:none">
+          <li><span>Contracts made</span><span class="pts">${conPct}% (${pd.contracts}/${pd.rounds})</span></li>
+          <li><span>Busted</span><span class="pts">${bustPct}%</span></li>
+          <li><span>Zero bids</span><span class="pts">${zbPct}% (${pd.nilMade}/${pd.nilBids} made)</span></li>
+          <li><span>Highest bidder</span><span class="pts">${hbPct}% of hands</span></li>
+          <li><span>Tricks won</span><span class="pts">${trkPct}%</span></li>
+          <li><span>Drinks handed out</span><span class="pts">&#127866;${pd.drinksGiven}</span></li>
+          <li><span>Dry hands</span><span class="pts">${dryPct}% · best run ${pd.bestDryStreak}</span></li>
+        </ul>
+
         <h3 style="font-family:'Cinzel';font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--ash);margin:14px 0 6px">By table size</h3>
         <ul class="standings" style="max-width:none">${countRows||'<li style="color:var(--ash)">No games yet</li>'}</ul>
       </section>`;
@@ -2106,20 +2294,32 @@ function viewStatsTwist(modeSeg){
       ${modeSeg}
       ${seg}
       <div style="margin-top:14px">${stats}</div>
+      ${overviewChart}
       <h3 style="font-family:'Cinzel';font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--ash);margin:8px 0 6px">Table awards</h3>
       ${awards}
-      <ul class="hof" id="hofList">${hof}</ul>
+      ${playersBlock}
     </section>
-    <section class="panel" ${state.playerDetail?'style="display:none"':''}><h2>Recent games</h2><ul class="hof">${recent}</ul></section>`;
+    <section class="panel" ${(state.playerDetail||state.compareOn)?'style="display:none"':''}><h2>Recent games</h2><ul class="hof">${recent}</ul></section>`;
 }
 
 function wireStats(){
-  $$('#app [data-cf]').forEach(b=> b.onclick = ()=>{ state.statFilter = b.dataset.cf; state.playerDetail=null; render(); });
-  $$('#app [data-cft]').forEach(b=> b.onclick = ()=>{ state.statFilterTwist = b.dataset.cft; state.playerDetail=null; render(); });
-  $$('#app [data-sm]').forEach(b=> b.onclick = ()=>{ state.statMode = b.dataset.sm; state.playerDetail=null; render(); });
-  $$('#app .hof-row[data-player]').forEach(li=>{ li.onclick = ()=>{ state.playerDetail = li.dataset.player; render(); }; });
+  $$('#app [data-cf]').forEach(b=> b.onclick = ()=>{ state.statFilter = b.dataset.cf; state.playerDetail=null; state.compareOn=false; state.compareSel=[]; render(); });
+  $$('#app [data-cft]').forEach(b=> b.onclick = ()=>{ state.statFilterTwist = b.dataset.cft; state.playerDetail=null; state.compareOn=false; state.compareSel=[]; render(); });
+  $$('#app [data-sm]').forEach(b=> b.onclick = ()=>{ state.statMode = b.dataset.sm; state.playerDetail=null; state.compareOn=false; state.compareSel=[]; render(); });
+  $$('#app .hof-row[data-player]').forEach(li=>{ li.onclick = ()=>{ state.playerDetail = li.dataset.player; state.compareOn=false; render(); }; });
   const closeDetail = $('#app #closeDetail');
   if(closeDetail) closeDetail.onclick = ()=>{ state.playerDetail=null; render(); };
+  const cmpToggle = $('#app #cmpToggle');
+  if(cmpToggle) cmpToggle.onclick = ()=>{ state.compareOn = !state.compareOn; state.playerDetail=null; render(); };
+  $$('#app [data-cmp]').forEach(chip=>{
+    chip.onclick = ()=>{
+      const name = chip.dataset.cmp;
+      const i = state.compareSel.indexOf(name);
+      if(i>=0) state.compareSel.splice(i,1);
+      else if(state.compareSel.length < COMPARE_MAX) state.compareSel.push(name);
+      render();
+    };
+  });
 }
 
 boot();
