@@ -1013,6 +1013,16 @@ function shelf(g,t,ld,dr,mode,done){
   const pints = g.players.map((nm,i)=>{
     const pct = Math.max(0, Math.round(((t[i]-Math.min(0,min))/range)*100));
     const lead = ld.winners.includes(i) && ld.max>0;
+    // --- Pint geometry: stout body topped by a creamy head that's ALWAYS visible.
+    // The head is part of the fill (it sits below the rim, so it never clips) and
+    // scales with the pour: a thin line when trailing, a thick freshly-poured
+    // crown at pct 100 (the leader).
+    const IN_BOT = 136, IN_H = 130;                              // glass interior, y-space
+    const foamH = Math.round(3 + (pct/100)*16);                  // 3px thin → 19px thick head
+    const fillH = Math.min(IN_H, Math.max((pct/100)*IN_H, foamH+1)); // head always shows, even at 0
+    const surfaceY = IN_BOT - fillH;                            // top of the head (never above rim)
+    const foamBotY = surfaceY + foamH;                         // head / stout boundary
+    const stoutH = Math.max(0, IN_BOT - foamBotY);             // stout below the head
     const sk = liveStreak[nm]||0;
     const skTxt = sk>=2?`🔥${sk}`:sk<=-2?`❄${Math.abs(sk)}`:'';
     return `<div class="pint ${lead?'lead':''}">
@@ -1037,15 +1047,12 @@ function shelf(g,t,ld,dr,mode,done){
           <stop offset="100%" stop-color="rgba(255,255,255,0.10)"/>
         </linearGradient>
         <clipPath id="gc${i}">
-  <path d="M6,8 Q31,4 56,8 C57,12 58,20 57,28 C56,42 52,57 49,74 C47,85 46,94 46,102 C46,114 48,124 51,130 C52,133 53,135 53,136 C53,138 51,140 49,140 L13,140 C11,140 9,138 9,136 C9,135 10,133 11,130 C14,124 16,114 16,102 C16,94 15,85 13,74 C10,57 6,42 5,28 C4,20 5,12 6,8 Z"/>
-</clipPath>
-<clipPath id="fc${i}">
-  <rect x="11" y="0" width="40" height="144"/>
-</clipPath>
+          <path d="M6,8 Q31,4 56,8 C57,12 58,20 57,28 C56,42 52,57 49,74 C47,85 46,94 46,102 C46,114 48,124 51,130 C52,133 53,135 53,136 C53,138 51,140 49,140 L13,140 C11,140 9,138 9,136 C9,135 10,133 11,130 C14,124 16,114 16,102 C16,94 15,85 13,74 C10,57 6,42 5,28 C4,20 5,12 6,8 Z"/>
         </clipPath>
       </defs>
-      <rect x="0" y="${136-(pct/100)*130}" width="62" height="${(pct/100)*130}" fill="url(#sg${i})" clip-path="url(#gc${i})"/>
-      ${pct>5?`<rect x="${6+Math.round((1-(pct/100))*8)}" y="${136-(pct/100)*130-Math.round(2+(pct/100)*(pct/100)*22)}" width="${50-Math.round((1-(pct/100))*16)}" height="${Math.round(2+(pct/100)*(pct/100)*22)}" rx="4" fill="#f0e6c8" clip-path="url(#fc${i})"/>`:''}
+      <rect x="0" y="${foamBotY}" width="62" height="${stoutH}" fill="url(#sg${i})" clip-path="url(#gc${i})"/>
+      <rect x="0" y="${surfaceY}" width="62" height="${foamH}" rx="4" fill="url(#fg${i})" clip-path="url(#gc${i})"/>
+      <ellipse cx="31" cy="${(surfaceY+0.5).toFixed(1)}" rx="26" ry="${Math.min(5,foamH/2).toFixed(1)}" fill="url(#fg${i})" clip-path="url(#gc${i})"/>
       <path d="M6,8 Q31,4 56,8 C57,12 58,20 57,28 C56,42 52,57 49,74 C47,85 46,94 46,102 C46,114 48,124 51,130 C52,133 53,135 53,136 C53,138 51,140 49,140 L13,140 C11,140 9,138 9,136 C9,135 10,133 11,130 C14,124 16,114 16,102 C16,94 15,85 13,74 C10,57 6,42 5,28 C4,20 5,12 6,8 Z" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="1.3"/>
       <line x1="7" y1="7" x2="55" y2="7" stroke="rgba(255,255,255,0.35)" stroke-width="1.5" stroke-linecap="round"/>
       <path d="M6,8 Q31,4 56,8 C57,12 58,20 57,28 C56,42 52,57 49,74 C47,85 46,94 46,102 C46,114 48,124 51,130 C52,133 53,135 53,136 C53,138 51,140 49,140 L13,140 C11,140 9,138 9,136 C9,135 10,133 11,130 C14,124 16,114 16,102 C16,94 15,85 13,74 C10,57 6,42 5,28 C4,20 5,12 6,8 Z" fill="url(#sh${i})" pointer-events="none"/>
