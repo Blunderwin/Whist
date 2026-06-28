@@ -120,68 +120,33 @@
     display:flex;
     gap:14px;
     overflow-x:auto;
-    padding:6px 2px 16px;
+    padding:12px 12px 18px;
     border-bottom:2px solid var(--gold-dim);
     margin-bottom:6px;
     -webkit-overflow-scrolling:touch;
+    background: linear-gradient(180deg, #7a5530 0%, #6b4826 60%, #5a3c1e 100%);
+    border-radius:10px 10px 0 0;
+    border-top: 1px solid rgba(199,154,59,.22);
+    border-left: 1px solid rgba(199,154,59,.10);
+    border-right: 1px solid rgba(199,154,59,.10);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.04), 0 4px 20px rgba(0,0,0,.5);
 }
 
 .pint{
     flex:0 0 auto;
-    width:74px;
+    width:80px;
     text-align:center;
 }
 
 .glass{
-    position:relative;
-    width:62px;
-    height:138px;
-    margin:0 auto 8px;
-
-    overflow:hidden;
-
-    /* Proper Guinness profile */
-    clip-path:path('M17 2
-L47 2
-L48 32
-C48 48 53 70 56 97
-C59 122 53 135 46 138
-L18 138
-C11 135 5 122 8 97
-C11 70 16 48 16 32
-Z');
-
-    background:
-        linear-gradient(
-            90deg,
-            rgba(255,255,255,.13) 0%,
-            rgba(255,255,255,.03) 18%,
-            rgba(255,255,255,.01) 75%,
-            rgba(255,255,255,.09) 100%
-        );
-
-    border:1px solid rgba(255,255,255,.20);
-
-    filter:
-        drop-shadow(0 2px 3px rgba(0,0,0,.45));
+    position:relative;
+    width:93px;
+    height:138px;
+    margin:0 auto 8px;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,.5));
 }
 
-.glass::before{
-    content:"";
-    position:absolute;
-    inset:0;
-    z-index:5;
-    pointer-events:none;
 
-    background:
-        linear-gradient(
-            90deg,
-            rgba(255,255,255,.16),
-            rgba(255,255,255,0) 22%,
-            rgba(255,255,255,0) 72%,
-            rgba(255,255,255,.08)
-        );
-}
 
 .fill{
     position:absolute;
@@ -1021,10 +986,34 @@ function shelf(g,t,ld,dr,mode){
     return `<div class="pint ${lead?'lead':''}">
       <div class="crown">${lead?'&#9819;':''}</div>
       <div class="glass">
-    <div class="fill ${pct>88?'full':''}"
-     style="height:${pct}%">
-        <div class="foam"></div>
-    </div>
+    <svg viewBox="0 0 62 144" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;display:block;transform:scaleX(1.2);transform-origin:center top;">
+      <defs>
+        <linearGradient id="sg${i}" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#352015"/>
+          <stop offset="45%" stop-color="#1d0d08"/>
+          <stop offset="100%" stop-color="#060303"/>
+        </linearGradient>
+        <linearGradient id="fg${i}" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#fffef9"/>
+          <stop offset="70%" stop-color="#f6edd5"/>
+          <stop offset="100%" stop-color="#e0cca2"/>
+        </linearGradient>
+        <linearGradient id="sh${i}" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="rgba(255,255,255,0.18)"/>
+          <stop offset="18%" stop-color="rgba(255,255,255,0.04)"/>
+          <stop offset="75%" stop-color="rgba(255,255,255,0.02)"/>
+          <stop offset="100%" stop-color="rgba(255,255,255,0.10)"/>
+        </linearGradient>
+        <clipPath id="gc${i}">
+          <path d="M6,8 Q31,4 56,8 C57,12 58,20 57,28 C56,42 52,57 49,74 C47,85 46,94 46,102 C46,114 48,124 51,130 C52,133 53,135 53,136 C53,138 51,140 49,140 L13,140 C11,140 9,138 9,136 C9,135 10,133 11,130 C14,124 16,114 16,102 C16,94 15,85 13,74 C10,57 6,42 5,28 C4,20 5,12 6,8 Z"/>
+        </clipPath>
+      </defs>
+      <rect x="0" y="${136-(pct/100)*130}" width="62" height="${(pct/100)*130}" fill="url(#sg${i})" clip-path="url(#gc${i})"/>
+      ${pct>5?`<ellipse cx="31" cy="${136-(pct/100)*130}" rx="20" ry="5" fill="url(#fg${i})" clip-path="url(#gc${i})"/>`:''}
+      <path d="M6,8 Q31,4 56,8 C57,12 58,20 57,28 C56,42 52,57 49,74 C47,85 46,94 46,102 C46,114 48,124 51,130 C52,133 53,135 53,136 C53,138 51,140 49,140 L13,140 C11,140 9,138 9,136 C9,135 10,133 11,130 C14,124 16,114 16,102 C16,94 15,85 13,74 C10,57 6,42 5,28 C4,20 5,12 6,8 Z" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="1.3"/>
+      <line x1="7" y1="7" x2="55" y2="7" stroke="rgba(255,255,255,0.35)" stroke-width="1.5" stroke-linecap="round"/>
+      <path d="M6,8 Q31,4 56,8 C57,12 58,20 57,28 C56,42 52,57 49,74 C47,85 46,94 46,102 C46,114 48,124 51,130 C52,133 53,135 53,136 C53,138 51,140 49,140 L13,140 C11,140 9,138 9,136 C9,135 10,133 11,130 C14,124 16,114 16,102 C16,94 15,85 13,74 C10,57 6,42 5,28 C4,20 5,12 6,8 Z" fill="url(#sh${i})" pointer-events="none"/>
+    </svg>
 </div>
       <div class="name" title="${esc(nm)}">${esc(nm)}</div>
       <div class="score">${t[i]}${skTxt?` <span style="font-size:10px">${skTxt}</span>`:''}</div>
