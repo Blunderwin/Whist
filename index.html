@@ -632,7 +632,9 @@ const state = {
   statFilter: "all",
   statFilterTwist: "all",
   statMode: "whist",             // which Hall of Fame dataset is showing
-  knownPlayerNames: []           // shared roster, from cw_players (or cache)
+  knownPlayerNames: [],          // shared roster, from cw_players (or cache)
+  playerDetail: null,            // name string while drilling into a player
+  h2hPair: null                  // {a, b} for head-to-head lookup overlay
 };
 
 async function boot(){
@@ -881,14 +883,25 @@ function shelf(g,t,ld,dr,mode){
   const max = Math.max(1, ld.max);
   const min = Math.min(0, ...t);
   const range = Math.max(1, max - Math.min(0,min));
+  // Pull live active streaks from finished games
+  const fin = (state.games[mode]||[]).filter(x=>x.finishedAt);
+  const chron = [...fin].sort((a,b)=>new Date(a.finishedAt)-new Date(b.finishedAt));
+  const liveStreak = {};
+  chron.forEach(x=>{
+    const ld2=leaders(x); const ws=new Set(ld2.winners.map(i=>x.players[i]));
+    x.players.forEach(nm=>{ liveStreak[nm] = ws.has(nm) ? ((liveStreak[nm]||0)>0?liveStreak[nm]+1:1) : ((liveStreak[nm]||0)<0?liveStreak[nm]-1:-1); });
+  });
+
   const pints = g.players.map((nm,i)=>{
     const pct = Math.max(6, Math.round(((t[i]-Math.min(0,min))/range)*100));
     const lead = ld.winners.includes(i) && ld.max>0;
+    const sk = liveStreak[nm]||0;
+    const skTxt = sk>=2?`🔥${sk}`:sk<=-2?`❄${Math.abs(sk)}`:'';
     return `<div class="pint ${lead?'lead':''}">
       <div class="crown">${lead?'&#9819;':''}</div>
       <div class="glass"><div class="fill" style="height:${pct}%"><div class="foam"></div></div></div>
       <div class="name" title="${esc(nm)}">${esc(nm)}</div>
-      <div class="score">${t[i]}</div>
+      <div class="score">${t[i]}${skTxt?` <span style="font-size:10px">${skTxt}</span>`:''}</div>
       ${mode==="twist" ? `<div class="drinks">${dr[i]>0?`&#127866; ${dr[i]}`:''}</div>` : ''}
     </div>`;
   }).join("");
@@ -1354,9 +1367,14 @@ function computeStatsWhist(games, countFilter){
     overbids:0, minRaises:0, trumpsPicked:0, trumpsMade:0,
     nilBids:0, nilMade:0, bestHand:0,
     missMarginSum:0,                                  // sum of |bid-tricks| on busted hands -> avg miss margin
+    bidErrSum:0,                                       // sum of |bid-tricks| on ALL hands (bid accuracy)
     dealerRounds:0, dealerPts:0, nonDealerRounds:0, nonDealerPts:0, // does the hook punish the dealer?
     trumpsBySuit:{S:0,H:0,D:0,C:0}, trumpsMadeBySuit:{S:0,H:0,D:0,C:0}, // favourite trump suit
-    finishSum:0, bestStreak:0                          // avg finishing position + longest win streak
+    finishSum:0, bestStreak:0,                         // avg finishing position + longest win streak
+    winsByCount:{},                                    // wins by player count: {4:3, 5:1, ...}
+    gamesByCount:{},                                   // games by player count
+    recentPoints:[],                                   // last 5 game scores for "most improved"
+    allTimePoints:[]                                   // all game scores for baseline
   });
   let bigRound = {val:-1,name:null,cards:null};
   // Fun-fact trackers (cross-game, computed in the same pass as the per-game loop below)
@@ -1379,6 +1397,10 @@ function computeStatsWhist(games, countFilter){
       if(ld.winners.includes(i)) s.wins++;
       if(t[i] > s.bestGame) s.bestGame = t[i];
       s.finishSum += 1 + t.filter(v=>v>t[i]).length;   // standard competition ranking, ties share a place
+      const nc = String(n);
+      s.gamesByCount[nc] = (s.gamesByCount[nc]||0)+1;
+      if(ld.winners.includes(i)) s.winsByCount[nc] = (s.winsByCount[nc]||0)+1;
+      s.allTimePoints.push(t[i]);
     });
 
     // Closest game / biggest blowout — margin between 1st and 2nd place
@@ -1412,6 +1434,7 @@ function computeStatsWhist(games, countFilter){
         if(rs > s.bestHand) s.bestHand = rs;
         if(rs > bigRound.val) bigRound = {val:rs, name:nm, cards:r.cards};
         if(bid===tr) s.contracts++; else { s.busts++; s.missMarginSum += Math.abs(bid-tr); }
+        s.bidErrSum += Math.abs(bid-tr);
         if(bid===0){ s.nilBids++; if(tr===0) s.nilMade++; }
         if(i===hb){
           s.trumpsPicked++;
@@ -1462,15 +1485,42 @@ function computeStatsWhist(games, countFilter){
 
   // Longest win streak — needs chronological order, so a separate pass.
   const chron = [...fin].sort((a,b)=> new Date(a.finishedAt) - new Date(b.finishedAt));
-  const curStreak = {};
+  const curStreak = {};   // positive = current win streak, negative = loss streak
   chron.forEach(g=>{
     const ld = leaders(g);
     const winSet = new Set(ld.winners.map(i=>g.players[i]));
     g.players.forEach(nm=>{
       const s = ensure(nm);
-      if(winSet.has(nm)){ curStreak[nm] = (curStreak[nm]||0)+1; if(curStreak[nm] > s.bestStreak) s.bestStreak = curStreak[nm]; }
-      else curStreak[nm] = 0;
+      if(winSet.has(nm)){
+        curStreak[nm] = (curStreak[nm]||0) > 0 ? curStreak[nm]+1 : 1;
+        if(curStreak[nm] > s.bestStreak) s.bestStreak = curStreak[nm];
+      } else {
+        curStreak[nm] = (curStreak[nm]||0) < 0 ? curStreak[nm]-1 : -1;
+      }
     });
+  });
+  // Attach the live active streak to each player object
+  Object.values(byName).forEach(p=>{ p.activeStreak = curStreak[p.name] || 0; });
+
+  // Most improved: compare recent-5-game avg vs all-time avg (need >=6 games for meaningful signal)
+  Object.values(byName).forEach(p=>{
+    if(p.allTimePoints.length < 6){ p.improvement = null; return; }
+    const all = p.allTimePoints;
+    const recentN = 5;
+    const recentAvg = all.slice(-recentN).reduce((a,v)=>a+v,0)/recentN;
+    const baselineAvg = all.slice(0,-recentN).reduce((a,v)=>a+v,0)/(all.length-recentN);
+    p.improvement = recentAvg - baselineAvg;
+    p.recentAvg = recentAvg; p.baselineAvg = baselineAvg;
+  });
+
+  // Lucky table size: best win-rate count (min 2 games at that size)
+  Object.values(byName).forEach(p=>{
+    let bestCount = null, bestRate = -1;
+    Object.keys(p.gamesByCount).forEach(nc=>{
+      const g = p.gamesByCount[nc], w = p.winsByCount[nc]||0;
+      if(g>=2){ const r=w/g; if(r>bestRate||(r===bestRate&&g>(p.gamesByCount[bestCount]||0))){ bestRate=r; bestCount=nc; } }
+    });
+    p.luckyCount = bestCount ? { count:+bestCount, games:p.gamesByCount[bestCount], wins:p.winsByCount[bestCount]||0, rate:bestRate } : null;
   });
 
   // Biggest rivalry — the most one-sided head-to-head record, min 3 games together.
@@ -1500,7 +1550,7 @@ function computeStatsWhist(games, countFilter){
     closestGame: closestGame.champ ? closestGame : null,
     blowout: (blowout.champ && blowout.margin>0) ? blowout : null,
     comeback: biggestComeback.who ? biggestComeback : null,
-    rivalry
+    rivalry, h2h
   };
 }
 
@@ -1553,6 +1603,8 @@ function viewStatsWhist(modeSeg){
   const sandbagger  = leaderOf(st.players, p=> p.rounds ? (p.tricksWon-p.bidSum)/p.rounds : -Infinity, MIN);
   const bustProne   = leaderOf(st.players, p=> pct(p.busts,p.rounds), MIN);
   const streakStar  = leaderOf(st.players, p=> p.bestStreak||0);
+  const mostAccurate= leaderOf(st.players, p=> p.rounds>=MIN ? -(p.bidErrSum/p.rounds) : -Infinity, MIN); // lowest avg error
+  const mostImproved= st.players.filter(p=>p.improvement!=null).reduce((best,p)=> p.improvement>(best?.improvement??-Infinity)?p:best, null);
 
   let dealerCurse = null;
   st.players.forEach(p=>{
@@ -1576,12 +1628,14 @@ function viewStatsWhist(modeSeg){
   add('Most overbids',      overlord && overlord.val>0,          overlord && `${esc(overlord.name)} · ${overlord.val}`);
   add('Spite raises (+1)',  spite && spite.val>0,                spite && `${esc(spite.name)} · ${spite.val}`);
   add('Sharpest shooter',   sharp && sharp.val>0,                sharp && `${esc(sharp.name)} · ${sharp.val}%`);
+  add('Most accurate bids', mostAccurate && mostAccurate.rounds>=MIN, mostAccurate && `${esc(mostAccurate.name)} · ${(mostAccurate.bidErrSum/mostAccurate.rounds).toFixed(2)} avg err`);
   add('Big talker',         bigTalker && bigTalker.val>0,        bigTalker && `${esc(bigTalker.name)} · +${bigTalker.val.toFixed(2)}/hand`);
   add('Sandbagger',         sandbagger && sandbagger.val>0,      sandbagger && `${esc(sandbagger.name)} · +${sandbagger.val.toFixed(2)}/hand`);
   add('Bust-prone',         bustProne && bustProne.val>0,         bustProne && `${esc(bustProne.name)} · ${bustProne.val}%`);
   add("Dealer's curse",     !!dealerCurse,                       dealerCurse && `${esc(dealerCurse.name)} · &minus;${dealerCurse.val.toFixed(1)} pts dealing`);
   add('Suit specialist',    !!suitSpecialist,                    suitSpecialist && `${esc(suitSpecialist.name)} · ${suitSym[suitSpecialist.suit]} ${suitSpecialist.val}%`);
   add('Biggest rivalry',    !!st.rivalry,                        st.rivalry && `${esc(st.rivalry.leader)} leads ${esc(st.rivalry.trail)} ${st.rivalry.w}&ndash;${st.rivalry.l}${st.rivalry.d?` (${st.rivalry.d}d)`:''}`);
+  add('Most improved',      !!mostImproved && mostImproved.improvement>0.5, mostImproved && `${esc(mostImproved.name)} · +${mostImproved.improvement.toFixed(1)} pts recent`);
   add('Longest win streak', streakStar && streakStar.val>1,      streakStar && `${esc(streakStar.name)} · ${streakStar.val} in a row`);
   const awards = `<ul class="standings" style="max-width:none">${A.join("")}</ul>`;
 
@@ -1595,6 +1649,7 @@ function viewStatsWhist(modeSeg){
     const avgFinish = p.games ? (p.finishSum/p.games).toFixed(1) : '–';
     const bustPct   = pct(p.busts, p.rounds);
     const missAvg   = p.busts ? (p.missMarginSum/p.busts).toFixed(1) : '0.0';
+    const bidAcc    = p.rounds ? (p.bidErrSum/p.rounds).toFixed(2) : '–';
     const diff      = p.rounds ? (p.bidSum-p.tricksWon)/p.rounds : 0;
     const tendency  = Math.abs(diff)<0.05 ? 'bids true' : (diff>0 ? `overbids ${diff.toFixed(2)}/hand` : `sandbags ${Math.abs(diff).toFixed(2)}/hand`);
     const dAvg      = p.dealerRounds ? (p.dealerPts/p.dealerRounds).toFixed(1) : '–';
@@ -1603,15 +1658,19 @@ function viewStatsWhist(modeSeg){
     const favTxt    = fav ? `${suitSym[fav.suit]} fave (${fav.picks} picks, ${Math.round(fav.made/fav.picks*100)}% made)` : 'no clear favourite';
     const hbPct     = pct(p.trumpsPicked, p.rounds);
     const zbPct     = pct(p.nilBids, p.rounds);
-    return `<li>
+    const streakTxt = p.activeStreak > 1 ? `🔥 ${p.activeStreak} straight` : p.activeStreak < -1 ? `❄️ ${Math.abs(p.activeStreak)} down` : '';
+    const luckyTxt  = p.luckyCount ? `lucky at ${p.luckyCount.count}p (${Math.round(p.luckyCount.rate*100)}% win)` : '';
+    const impTxt    = p.improvement!=null ? (p.improvement>0.5?`📈 +${p.improvement.toFixed(1)} recent`:(p.improvement<-0.5?`📉 ${p.improvement.toFixed(1)} recent`:'')) : '';
+    return `<li class="hof-row" data-player="${esc(p.name)}" style="cursor:pointer">
       <span class="rk">${i+1}</span>
       <span>
-        <span class="nm">${esc(p.name)}</span><br>
-        <span class="meta">${p.games} games · ${winPct}% match win · avg ${avg} · best game ${p.bestGame} · streak ${p.bestStreak||0}</span><br>
-        <span class="meta">${conPct}% contract win (${p.contracts} made) · ${trkPct}% tricks won (${p.tricksWon} all-time) · ${bpc} bid/card</span><br>
+        <span class="nm">${esc(p.name)}</span>${streakTxt?` <span style="font-size:11px">${streakTxt}</span>`:''}${luckyTxt?`<br><span class="meta">${luckyTxt}${impTxt?' · '+impTxt:''}</span>`:(impTxt?`<br><span class="meta">${impTxt}</span>`:'')}
+        <br><span class="meta">${p.games} games · ${winPct}% match win · avg ${avg} · best game ${p.bestGame} · streak ${p.bestStreak||0}</span><br>
+        <span class="meta">${conPct}% contract win (${p.contracts} made) · ${trkPct}% tricks won · bid acc ${bidAcc}</span><br>
         <span class="meta">highest bidder ${hbPct}% (${p.trumpsPicked}/${p.rounds}, ${trMake}% made) · zero-bid ${zbPct}% (${p.nilMade}/${p.nilBids} made)</span><br>
         <span class="meta">${p.overbids} overbids (${p.minRaises} spite) · finish avg ${avgFinish} · bust ${bustPct}% (miss ${missAvg}) · ${tendency}</span><br>
-        <span class="meta">dealing ${dAvg} vs ${ndAvg} non-deal · trumps ${favTxt}</span>
+        <span class="meta">dealing ${dAvg} vs ${ndAvg} non-deal · trumps ${favTxt}</span><br>
+        <span class="meta" style="color:var(--gold-dim);font-size:11px">Tap for full profile &amp; head-to-head</span>
       </span>
       <span class="w">${p.wins}</span>
       <span class="meta">wins</span>
@@ -1624,17 +1683,62 @@ function viewStatsWhist(modeSeg){
     return `<li><span class="rk">&#9824;</span><span><span class="nm">${champ}</span><br><span class="meta">${g.players.length}p · ${esc(g.players.join(', '))}</span></span><span class="w">${top}</span><span class="meta">${d.toLocaleDateString()}</span></li>`;
   }).join("");
 
+  // Player detail view
+  let detailSection = '';
+  if(state.playerDetail){
+    const pd = st.players.find(p=>p.name===state.playerDetail);
+    if(pd){
+      const pct2=(a,b)=>b?Math.round(a/b*100):0;
+      const avg2=(pd.points/Math.max(1,pd.games)).toFixed(0);
+      const countRows = Object.keys(pd.gamesByCount).sort((a,b)=>+a-+b).map(nc=>{
+        const g=pd.gamesByCount[nc], w=pd.winsByCount[nc]||0;
+        return `<li><span>${nc}-player table</span><span class="pts">${w}W / ${g-w}L of ${g} · ${Math.round(w/g*100)}% win</span></li>`;
+      }).join('');
+      const h2hRows = st.players.filter(op=>op.name!==pd.name).map(op=>{
+        const rec = (st.h2h[pd.name]||{})[op.name];
+        if(!rec) return '';
+        return `<li><span>${esc(op.name)}</span><span class="pts">${rec.w}W ${rec.l}L${rec.d?' '+rec.d+'D':''}</span></li>`;
+      }).filter(Boolean).join('');
+      const streakLabel = pd.activeStreak>1?`🔥 ${pd.activeStreak} win streak`:pd.activeStreak<-1?`❄️ ${Math.abs(pd.activeStreak)} game slide`:'No streak';
+      const luckyLabel = pd.luckyCount?`${pd.luckyCount.count}-player (${Math.round(pd.luckyCount.rate*100)}% win rate)`:'Not enough data';
+      const impLabel = pd.improvement!=null?`${pd.improvement>0?'+':''}${pd.improvement.toFixed(1)} pts (recent ${pd.recentAvg.toFixed(0)} vs baseline ${pd.baselineAvg.toFixed(0)})`:'Need 6+ games';
+      const bidAccLabel = pd.rounds?(pd.bidErrSum/pd.rounds).toFixed(2):'–';
+      detailSection = `<section class="panel" id="playerDetail">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+          <button class="btn ghost sm" id="closeDetail">&larr; Back</button>
+          <h2 style="margin:0">${esc(pd.name)}</h2>
+        </div>
+        <div class="stat-grid">
+          <div class="stat"><div class="big">${pd.wins}</div><div class="lbl">Wins of ${pd.games}</div></div>
+          <div class="stat"><div class="big">${avg2}</div><div class="lbl">Avg score</div></div>
+          <div class="stat"><div class="big">${pd.bestGame}</div><div class="lbl">Best game</div></div>
+          <div class="stat"><div class="big">${bidAccLabel}</div><div class="lbl">Bid accuracy (avg err)</div></div>
+        </div>
+        <div class="stat-grid" style="margin-top:8px">
+          <div class="stat"><div class="big" style="font-size:18px">${streakLabel}</div><div class="lbl">Current form</div></div>
+          <div class="stat"><div class="big" style="font-size:18px">${luckyLabel}</div><div class="lbl">Lucky table size</div></div>
+          <div class="stat"><div class="big" style="font-size:18px">${impLabel}</div><div class="lbl">Most improved?</div></div>
+        </div>
+        <h3 style="font-family:'Cinzel';font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--ash);margin:14px 0 6px">By table size</h3>
+        <ul class="standings" style="max-width:none">${countRows||'<li style="color:var(--ash)">No games yet</li>'}</ul>
+        <h3 style="font-family:'Cinzel';font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--ash);margin:14px 0 6px">Head-to-head record</h3>
+        <ul class="standings" style="max-width:none">${h2hRows||'<li style="color:var(--ash)">No shared games recorded</li>'}</ul>
+      </section>`;
+    }
+  }
+
   return `
-    <section class="panel"><h2>Hall of Fame</h2>
+    ${detailSection}
+    <section class="panel" ${state.playerDetail?'style="display:none"':''}><h2>Hall of Fame</h2>
       <div class="sub">All-time record · ${cf==='all'?'every table':cf+'-player games'}.</div>
       ${modeSeg}
       ${seg}
       <div style="margin-top:14px">${stats}</div>
       <h3 style="font-family:'Cinzel';font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--ash);margin:8px 0 6px">Table awards</h3>
       ${awards}
-      <ul class="hof">${hof}</ul>
+      <ul class="hof" id="hofList">${hof}</ul>
     </section>
-    <section class="panel"><h2>Recent games</h2><ul class="hof">${recent}</ul></section>`;
+    <section class="panel" ${state.playerDetail?'style="display:none"':''}><h2>Recent games</h2><ul class="hof">${recent}</ul></section>`;
 }
 
 /* ---- Twist stats (drinks, tracked separately, same depth as Whist) ---- */
@@ -1650,8 +1754,13 @@ function computeStatsTwist(games, countFilter){
     tricksWon:0, tricksAvail:0, bidSum:0, cardSum:0,
     overbids:0, minRaises:0, trumpsPicked:0, trumpsMade:0,
     nilBids:0, nilMade:0, bestHand:0, missMarginSum:0,
+    bidErrSum:0,
     finishSum:0, bestStreak:0,
-    drinksDown:0, drinksGiven:0
+    drinksDown:0, drinksGiven:0,
+    dryRounds:0,                // rounds with 0 drinks taken
+    bestDryStreak:0,            // consecutive dry rounds
+    winsByCount:{}, gamesByCount:{},
+    allTimePoints:[]
   });
   let bigRound = {val:-1,name:null};
 
@@ -1667,11 +1776,16 @@ function computeStatsTwist(games, countFilter){
       if(ld.winners.includes(i)) s.wins++;
       if(t[i] > s.bestGame) s.bestGame = t[i];
       s.finishSum += 1 + t.filter(v=>v>t[i]).length;
+      const nc = String(n);
+      s.gamesByCount[nc] = (s.gamesByCount[nc]||0)+1;
+      if(ld.winners.includes(i)) s.winsByCount[nc] = (s.winsByCount[nc]||0)+1;
+      s.allTimePoints.push(t[i]);
     });
 
     g.rounds.forEach(r=>{
       if(!r.recorded) return;
       const hb = highestBidder(g, r);
+      const rd = roundDrinks(r, g.settings);
       g.players.forEach((nm,i)=>{
         const bid = r.bids[i], tr = r.tricks[i];
         if(bid==null || tr==null) return;
@@ -1683,8 +1797,12 @@ function computeStatsTwist(games, countFilter){
         if(rs > s.bestHand) s.bestHand = rs;
         if(rs > bigRound.val) bigRound = {val:rs, name:nm};
         if(bid===tr) s.contracts++; else { s.busts++; s.missMarginSum += Math.abs(bid-tr); }
+        s.bidErrSum += Math.abs(bid-tr);
         if(bid===0){ s.nilBids++; if(tr===0) s.nilMade++; }
         if(i===hb){ s.trumpsPicked++; if(bid===tr) s.trumpsMade++; }
+        // Dry round tracking
+        if(rd[i]===0){ s.dryRounds++; s._dryStreak=(s._dryStreak||0)+1; if(s._dryStreak>s.bestDryStreak) s.bestDryStreak=s._dryStreak; }
+        else { s._dryStreak=0; }
       });
       let runMax = -1;
       bidOrder(r, n).forEach((pi,k)=>{
@@ -1712,9 +1830,33 @@ function computeStatsTwist(games, countFilter){
     const winSet = new Set(ld.winners.map(i=>g.players[i]));
     g.players.forEach(nm=>{
       const s = ensure(nm);
-      if(winSet.has(nm)){ curStreak[nm] = (curStreak[nm]||0)+1; if(curStreak[nm] > s.bestStreak) s.bestStreak = curStreak[nm]; }
-      else curStreak[nm] = 0;
+      if(winSet.has(nm)){
+        curStreak[nm] = (curStreak[nm]||0) > 0 ? curStreak[nm]+1 : 1;
+        if(curStreak[nm] > s.bestStreak) s.bestStreak = curStreak[nm];
+      } else {
+        curStreak[nm] = (curStreak[nm]||0) < 0 ? curStreak[nm]-1 : -1;
+      }
     });
+  });
+  Object.values(byName).forEach(p=>{ p.activeStreak = curStreak[p.name] || 0; });
+
+  // Most improved
+  Object.values(byName).forEach(p=>{
+    if(p.allTimePoints.length < 6){ p.improvement = null; return; }
+    const all = p.allTimePoints; const recentN=5;
+    const recentAvg = all.slice(-recentN).reduce((a,v)=>a+v,0)/recentN;
+    const baselineAvg = all.slice(0,-recentN).reduce((a,v)=>a+v,0)/(all.length-recentN);
+    p.improvement = recentAvg - baselineAvg;
+    p.recentAvg = recentAvg; p.baselineAvg = baselineAvg;
+  });
+  // Lucky table size
+  Object.values(byName).forEach(p=>{
+    let bestCount=null, bestRate=-1;
+    Object.keys(p.gamesByCount).forEach(nc=>{
+      const g=p.gamesByCount[nc], w=p.winsByCount[nc]||0;
+      if(g>=2){ const r=w/g; if(r>bestRate){ bestRate=r; bestCount=nc; } }
+    });
+    p.luckyCount = bestCount?{count:+bestCount, games:p.gamesByCount[bestCount], wins:p.winsByCount[bestCount]||0, rate:bestRate}:null;
   });
 
   const players = Object.values(byName).sort((a,b)=>
@@ -1755,12 +1897,18 @@ function viewStatsTwist(modeSeg){
   const sharp    = leaderOf(st.players, p=>pct(p.contracts,p.rounds), MIN);
   const bustProne= leaderOf(st.players, p=>pct(p.busts,p.rounds), MIN);
   const streakStar = leaderOf(st.players, p=> p.bestStreak||0);
+  const driest   = leaderOf(st.players, p=> p.rounds>=MIN ? pct(p.dryRounds,p.rounds) : -1, MIN);
+  const dryStreak= leaderOf(st.players, p=> p.bestDryStreak||0);
+  const mostImprovedT= st.players.filter(p=>p.improvement!=null).reduce((best,p)=>p.improvement>(best?.improvement??-Infinity)?p:best, null);
   const A=[];
   const add=(label, ok, html)=>{ if(ok) A.push(`<li><span>${label}</span><span class="pts">${html}</span></li>`); };
   add('Heaviest pour',      heaviest && heaviest.val>0,  heaviest && `${esc(heaviest.name)} · &#127866;${heaviest.val}`);
   add('Most generous',      generous && generous.val>0,  generous && `${esc(generous.name)} · &#127866;${generous.val} handed out`);
   add('Sharpest shooter',   sharp && sharp.val>0,        sharp && `${esc(sharp.name)} · ${sharp.val}%`);
   add('Bust-prone',         bustProne && bustProne.val>0,bustProne && `${esc(bustProne.name)} · ${bustProne.val}%`);
+  add('Driest player',      driest && driest.val>0,      driest && `${esc(driest.name)} · ${driest.val}% dry hands`);
+  add('Never misses streak',dryStreak && dryStreak.val>2,dryStreak && `${esc(dryStreak.name)} · ${dryStreak.val} straight dry`);
+  add('Most improved',      !!mostImprovedT && mostImprovedT.improvement>0.5, mostImprovedT && `${esc(mostImprovedT.name)} · +${mostImprovedT.improvement.toFixed(1)} pts recent`);
   add('Longest win streak', streakStar && streakStar.val>1, streakStar && `${esc(streakStar.name)} · ${streakStar.val} in a row`);
   const awards = `<ul class="standings" style="max-width:none">${A.join("")}</ul>`;
 
@@ -1772,14 +1920,19 @@ function viewStatsTwist(modeSeg){
     const zbPct     = pct(p.nilBids, p.rounds);
     const bustPct   = pct(p.busts, p.rounds);
     const avg       = (p.points/Math.max(1,p.games)).toFixed(0);
-    return `<li>
+    const dph       = p.games ? (p.drinksDown/p.games).toFixed(1) : '–';
+    const bidAcc    = p.rounds ? (p.bidErrSum/p.rounds).toFixed(2) : '–';
+    const streakTxt = p.activeStreak>1?`🔥 ${p.activeStreak} straight`:p.activeStreak<-1?`❄️ ${Math.abs(p.activeStreak)} down`:'';
+    const luckyTxt  = p.luckyCount?`lucky at ${p.luckyCount.count}p (${Math.round(p.luckyCount.rate*100)}% win)`:'';
+    return `<li class="hof-row" data-player="${esc(p.name)}" style="cursor:pointer">
       <span class="rk">${i+1}</span>
       <span>
-        <span class="nm">${esc(p.name)}</span><br>
-        <span class="meta">${p.games} games · ${winPct}% match win · avg ${avg} · best game ${p.bestGame} · streak ${p.bestStreak||0}</span><br>
-        <span class="meta">${conPct}% contract win (${p.contracts} made) · ${trkPct}% tricks won (${p.tricksWon} all-time)</span><br>
+        <span class="nm">${esc(p.name)}</span>${streakTxt?` <span style="font-size:11px">${streakTxt}</span>`:''}${luckyTxt?`<br><span class="meta">${luckyTxt}</span>`:''}
+        <br><span class="meta">${p.games} games · ${winPct}% match win · avg ${avg} · best game ${p.bestGame} · streak ${p.bestStreak||0}</span><br>
+        <span class="meta">${conPct}% contract win (${p.contracts} made) · ${trkPct}% tricks won · bid acc ${bidAcc}</span><br>
         <span class="meta">highest bidder ${hbPct}% · zero-bid ${zbPct}% · bust ${bustPct}%</span><br>
-        <span class="meta">&#127866; ${p.drinksDown} downed · ${p.drinksGiven} handed out</span>
+        <span class="meta">&#127866; ${p.drinksDown} downed (${dph}/game) · ${p.drinksGiven} handed out · ${pct(p.dryRounds,p.rounds)}% dry hands · best dry run ${p.bestDryStreak}</span><br>
+        <span class="meta" style="color:var(--gold-dim);font-size:11px">Tap for full profile</span>
       </span>
       <span class="w">${p.wins}</span>
       <span class="meta">wins</span>
@@ -1792,23 +1945,65 @@ function viewStatsTwist(modeSeg){
     return `<li><span class="rk">&#9824;</span><span><span class="nm">${champ}</span><br><span class="meta">${g.players.length}p · ${esc(g.players.join(', '))}</span></span><span class="w">${top}</span><span class="meta">${d.toLocaleDateString()}</span></li>`;
   }).join("");
 
+  // Twist player detail view
+  let detailSection = '';
+  if(state.playerDetail){
+    const pd = st.players.find(p=>p.name===state.playerDetail);
+    if(pd){
+      const avg2=(pd.points/Math.max(1,pd.games)).toFixed(0);
+      const dph = pd.games?(pd.drinksDown/pd.games).toFixed(1):'–';
+      const bidAcc = pd.rounds?(pd.bidErrSum/pd.rounds).toFixed(2):'–';
+      const countRows = Object.keys(pd.gamesByCount).sort((a,b)=>+a-+b).map(nc=>{
+        const g=pd.gamesByCount[nc], w=pd.winsByCount[nc]||0;
+        return `<li><span>${nc}-player table</span><span class="pts">${w}W / ${g-w}L of ${g} · ${Math.round(w/g*100)}% win</span></li>`;
+      }).join('');
+      const streakLabel = pd.activeStreak>1?`🔥 ${pd.activeStreak} win streak`:pd.activeStreak<-1?`❄️ ${Math.abs(pd.activeStreak)} game slide`:'No streak';
+      const luckyLabel = pd.luckyCount?`${pd.luckyCount.count}-player (${Math.round(pd.luckyCount.rate*100)}% win rate)`:'Not enough data';
+      const impLabel = pd.improvement!=null?`${pd.improvement>0?'+':''}${pd.improvement.toFixed(1)} pts (recent ${pd.recentAvg.toFixed(0)} vs baseline ${pd.baselineAvg.toFixed(0)})`:'Need 6+ games';
+      detailSection = `<section class="panel" id="playerDetail">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+          <button class="btn ghost sm" id="closeDetail">&larr; Back</button>
+          <h2 style="margin:0">${esc(pd.name)}</h2>
+        </div>
+        <div class="stat-grid">
+          <div class="stat"><div class="big">${pd.wins}</div><div class="lbl">Wins of ${pd.games}</div></div>
+          <div class="stat"><div class="big">${avg2}</div><div class="lbl">Avg score</div></div>
+          <div class="stat"><div class="big">&#127866;${pd.drinksDown}</div><div class="lbl">Total downed (${dph}/game)</div></div>
+          <div class="stat"><div class="big">${bidAcc}</div><div class="lbl">Bid accuracy (avg err)</div></div>
+        </div>
+        <div class="stat-grid" style="margin-top:8px">
+          <div class="stat"><div class="big" style="font-size:18px">${streakLabel}</div><div class="lbl">Current form</div></div>
+          <div class="stat"><div class="big" style="font-size:18px">${luckyLabel}</div><div class="lbl">Lucky table size</div></div>
+          <div class="stat"><div class="big" style="font-size:18px">${impLabel}</div><div class="lbl">Most improved?</div></div>
+          <div class="stat"><div class="big">${pd.bestDryStreak}</div><div class="lbl">Best dry-hand streak</div></div>
+        </div>
+        <h3 style="font-family:'Cinzel';font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--ash);margin:14px 0 6px">By table size</h3>
+        <ul class="standings" style="max-width:none">${countRows||'<li style="color:var(--ash)">No games yet</li>'}</ul>
+      </section>`;
+    }
+  }
+
   return `
-    <section class="panel"><h2>Hall of Fame</h2>
+    ${detailSection}
+    <section class="panel" ${state.playerDetail?'style="display:none"':''}><h2>Hall of Fame</h2>
       <div class="sub">All-time record · Contract Twist (tracked separately from Whist) · ${cf==='all'?'every table':cf+'-player games'}.</div>
       ${modeSeg}
       ${seg}
       <div style="margin-top:14px">${stats}</div>
       <h3 style="font-family:'Cinzel';font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--ash);margin:8px 0 6px">Table awards</h3>
       ${awards}
-      <ul class="hof">${hof}</ul>
+      <ul class="hof" id="hofList">${hof}</ul>
     </section>
-    <section class="panel"><h2>Recent games</h2><ul class="hof">${recent}</ul></section>`;
+    <section class="panel" ${state.playerDetail?'style="display:none"':''}><h2>Recent games</h2><ul class="hof">${recent}</ul></section>`;
 }
 
 function wireStats(){
-  $$('#app [data-cf]').forEach(b=> b.onclick = ()=>{ state.statFilter = b.dataset.cf; render(); });
-  $$('#app [data-cft]').forEach(b=> b.onclick = ()=>{ state.statFilterTwist = b.dataset.cft; render(); });
-  $$('#app [data-sm]').forEach(b=> b.onclick = ()=>{ state.statMode = b.dataset.sm; render(); });
+  $$('#app [data-cf]').forEach(b=> b.onclick = ()=>{ state.statFilter = b.dataset.cf; state.playerDetail=null; render(); });
+  $$('#app [data-cft]').forEach(b=> b.onclick = ()=>{ state.statFilterTwist = b.dataset.cft; state.playerDetail=null; render(); });
+  $$('#app [data-sm]').forEach(b=> b.onclick = ()=>{ state.statMode = b.dataset.sm; state.playerDetail=null; render(); });
+  $$('#app .hof-row[data-player]').forEach(li=>{ li.onclick = ()=>{ state.playerDetail = li.dataset.player; render(); }; });
+  const closeDetail = $('#app #closeDetail');
+  if(closeDetail) closeDetail.onclick = ()=>{ state.playerDetail=null; render(); };
 }
 
 boot();
