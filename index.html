@@ -114,28 +114,134 @@
   .suggest button:last-child{border-bottom:none}
   .suggest button:hover,.suggest button:focus{background:rgba(199,154,59,.16);color:var(--gold)}
 
-  /* ---------- The Shelf: pint standings (signature element) ---------- */
-  .shelf{display:flex;gap:14px;overflow-x:auto;padding:6px 2px 16px;
-    border-bottom:2px solid var(--gold-dim);margin-bottom:6px;-webkit-overflow-scrolling:touch}
-  .pint{flex:0 0 auto;width:74px;text-align:center}
-.glass{position:relative;height:128px;width:64px;margin:0 auto 8px;
-clip-path:path('M 8 128 C 8 110, 0 92, 0 62 C 0 36, 4 24, 4 18 C 4 9, 1 4, 1 0 L 63 0 C 63 4, 60 9, 60 18 C 60 24, 64 36, 64 62 C 64 92, 56 110, 56 128 Z');
-border-radius:8px 8px 14px 14px; /* fallback if clip-path:path() unsupported */
-background:rgba(0,0,0,.25);overflow:hidden;
-filter:drop-shadow(0 0 1px var(--line)) drop-shadow(0 2px 3px rgba(0,0,0,.45))}
-.glass::before{content:"";position:absolute;inset:0;
-background:linear-gradient(90deg,rgba(255,255,255,.10),transparent 30%,transparent 70%,rgba(255,255,255,.06));pointer-events:none;z-index:3}
-.fill{position:absolute;left:0;right:0;bottom:0;
-background:
-  radial-gradient(120% 60% at 50% 0%,rgba(163,45,39,.28),transparent 55%),
-  linear-gradient(180deg,#2b1810,#0a0503);
-transition:height .7s cubic-bezier(.2,.8,.2,1)}
-.foam{position:absolute;left:0;right:0;top:-14px;height:18px;
-border-radius:50% 50% 8px 8px / 65% 65% 12px 12px;
-background:radial-gradient(120% 160% at 50% 0%,#fffaf0 0%,var(--head) 45%,#d8c89a 100%);
-box-shadow:0 0 8px rgba(239,226,196,.55),0 3px 0 rgba(40,26,12,.35) inset}
-.pint.lead .glass{filter:drop-shadow(0 0 1px var(--gold)) drop-shadow(0 0 10px rgba(199,154,59,.6))}
-  .crown{color:var(--gold);font-size:12px;height:14px;line-height:14px}
+/* ---------- The Shelf: pint standings ---------- */
+
+.shelf{
+    display:flex;
+    gap:14px;
+    overflow-x:auto;
+    padding:6px 2px 16px;
+    border-bottom:2px solid var(--gold-dim);
+    margin-bottom:6px;
+    -webkit-overflow-scrolling:touch;
+}
+
+.pint{
+    flex:0 0 auto;
+    width:74px;
+    text-align:center;
+}
+
+.glass{
+    position:relative;
+    width:60px;
+    height:138px;
+    margin:0 auto 8px;
+    overflow:hidden;
+
+    /* Guinness pint silhouette */
+    clip-path:path('M12 0 L48 0 C49 12 49 24 49 40 C49 56 56 74 58 94 C60 116 53 131 47 138 L13 138 C7 131 0 116 2 94 C4 74 11 56 11 40 C11 24 11 12 12 0 Z');
+
+    background:
+        linear-gradient(
+            90deg,
+            rgba(255,255,255,.05),
+            rgba(255,255,255,.02)
+        );
+
+    border:1px solid rgba(255,255,255,.15);
+
+    filter:
+        drop-shadow(0 0 1px var(--line))
+        drop-shadow(0 3px 4px rgba(0,0,0,.45));
+}
+
+.glass::before{
+    content:"";
+    position:absolute;
+    inset:0;
+    z-index:5;
+    pointer-events:none;
+
+    background:
+        linear-gradient(
+            90deg,
+            rgba(255,255,255,.16),
+            rgba(255,255,255,0) 22%,
+            rgba(255,255,255,0) 72%,
+            rgba(255,255,255,.08)
+        );
+}
+
+.fill{
+    position:absolute;
+    left:0;
+    right:0;
+    bottom:0;
+
+    height:0%;
+
+    background:
+        radial-gradient(
+            ellipse at 50% 0%,
+            rgba(150,45,35,.22),
+            transparent 55%
+        ),
+        linear-gradient(
+            180deg,
+            #2b1810 0%,
+            #120907 45%,
+            #070303 100%
+        );
+
+    transition:height .7s cubic-bezier(.2,.8,.2,1);
+
+    overflow:visible;
+}
+
+.foam{
+    position:absolute;
+    left:0;
+    right:0;
+    top:-13px;
+    height:18px;
+
+    border-radius:50% 50% 8px 8px;
+
+    background:
+        radial-gradient(
+            ellipse at center,
+            #fffef9 0%,
+            var(--head) 65%,
+            #d8c89a 100%
+        );
+
+    box-shadow:
+        inset 0 -2px 3px rgba(0,0,0,.12),
+        0 0 8px rgba(239,226,196,.45);
+
+    opacity:0;
+    transform:translateY(5px);
+    transition:.25s;
+}
+
+.fill.full .foam{
+    opacity:1;
+    transform:translateY(0);
+}
+
+.pint.lead .glass{
+    filter:
+        drop-shadow(0 0 1px var(--gold))
+        drop-shadow(0 0 12px rgba(199,154,59,.55));
+}
+
+.crown{
+    color:var(--gold);
+    font-size:12px;
+    height:14px;
+    line-height:14px;
+}
 
   /* ---------- Round entry ---------- */
   .round-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap}
@@ -893,13 +999,17 @@ function shelf(g,t,ld,dr,mode){
   });
 
   const pints = g.players.map((nm,i)=>{
-    const pct = Math.max(6, Math.round(((t[i]-Math.min(0,min))/range)*100));
+    const pct = Math.max(0, Math.round(((t[i]-Math.min(0,min))/range)*100));
     const lead = ld.winners.includes(i) && ld.max>0;
     const sk = liveStreak[nm]||0;
     const skTxt = sk>=2?`🔥${sk}`:sk<=-2?`❄${Math.abs(sk)}`:'';
     return `<div class="pint ${lead?'lead':''}">
       <div class="crown">${lead?'&#9819;':''}</div>
-      <div class="glass"><div class="fill" style="height:${pct}%"><div class="foam"></div></div></div>
+      <div class="glass">
+    <div class="fill ${pct>=88 ? 'full' : ''}" style="height:${pct}%">
+        <div class="foam"></div>
+    </div>
+</div>
       <div class="name" title="${esc(nm)}">${esc(nm)}</div>
       <div class="score">${t[i]}${skTxt?` <span style="font-size:10px">${skTxt}</span>`:''}</div>
       ${mode==="twist" ? `<div class="drinks">${dr[i]>0?`&#127866; ${dr[i]}`:''}</div>` : ''}
