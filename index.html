@@ -257,7 +257,8 @@
   .trumps .lab b{color:var(--head);font-weight:600;text-transform:none;letter-spacing:0}
   .suitbtn{flex:0 0 auto;width:46px;height:46px;border-radius:11px;border:1px solid var(--line);
     background:#1b140d;color:var(--head);font-size:22px;line-height:1;display:inline-flex;align-items:center;justify-content:center;transition:.15s}
-  .suitbtn[data-suit="H"],.suitbtn[data-suit="D"]{color:var(--ruby)}
+.suitbtn[data-suit="H"],.suitbtn[data-suit="D"]{color:var(--ruby)}
+.suitbtn[data-suit="N"]{font-size:13px;font-family:"Cinzel";color:var(--ash)}
   .suitbtn[aria-pressed="true"]{border-color:var(--gold);box-shadow:0 0 0 2px rgba(199,154,59,.4);background:rgba(199,154,59,.12)}
 
   /* ---------- Drink hand-off picker (Twist) ----------
@@ -612,7 +613,7 @@ const DEFAULTS = { startCards:7, bonus:10, addTricks:true, failTricks:true, hook
 // Shown as greyed placeholder text in the setup fields (NOT pre-filled values),
 // and used as the fallback name if a field is left blank.
 const EXAMPLE_NAMES = ["Player 1","Player 2","Player 3","Player 4","Player 5","Player 6","Player 7","Player 8","Player 9","Player 10","Player 11","Player 12","Player 13"];
-const SUITS = [["S","\u2660","Spades"],["H","\u2665","Hearts"],["D","\u2666","Diamonds"],["C","\u2663","Clubs"]];
+const SUITS = [["N","NT","No trumps"],["S","\u2660","Spades"],["H","\u2665","Hearts"],["D","\u2666","Diamonds"],["C","\u2663","Clubs"]];
 function maxPlayersFor(mode){ return mode==="whist" ? 8 : 13; }
 
 /* ---------------------------------------------------------------
