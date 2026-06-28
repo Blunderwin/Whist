@@ -280,10 +280,20 @@ const LS = {
   del(k){ try { localStorage.removeItem(k); } catch { mem.delete(k); } }
 };
 const LocalAdapter = {
-  async getActive(){ const r = LS.get("cw_active"); return r ? JSON.parse(r) : null; },
+  async getActive(){
+    const r = LS.get("cw_active");
+    try { return r ? JSON.parse(r) : null; }
+    catch(e){ console.warn("Corrupt cw_active in storage — clearing:", e); LS.del("cw_active"); return null; }
+  },
   async setActive(g){ LS.set("cw_active", JSON.stringify(g)); },
   async clearActive(){ LS.del("cw_active"); },
-  async getGames(){ const r = LS.get("cw_games"); const m = r ? JSON.parse(r) : {}; return Object.values(m); },
+  async getGames(){
+    const r = LS.get("cw_games");
+    let m = {};
+    try { m = r ? JSON.parse(r) : {}; }
+    catch(e){ console.warn("Corrupt cw_games in storage — clearing:", e); LS.del("cw_games"); }
+    return Object.values(m);
+  },
   async saveGame(g){ const r = LS.get("cw_games"); const m = r ? JSON.parse(r) : {}; m[g.id] = g; LS.set("cw_games", JSON.stringify(m)); },
   label(){ return "Local table"; }
 };
@@ -439,8 +449,13 @@ const state = { view:"game", active:null, games:[], editing:null, setupPlayers:[
 
 async function boot(){
   $("#storeBadge").textContent = Storage.label();
-  state.active = await Storage.getActive();
-  state.games  = await Storage.getGames();
+  try{
+    state.active = await Storage.getActive();
+    state.games  = await Storage.getGames();
+  }catch(e){
+    console.warn("Boot storage read failed — starting fresh:", e);
+    state.active = null; state.games = [];
+  }
   wireTabs();
   render();
 }
