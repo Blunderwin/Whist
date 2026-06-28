@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>Contract Whist · The Scorekeeper</title>
-<meta name="description" content="A pub scorekeeper for Contract Whist. Bids in, pints poured, last hand decides it." />
+<meta name="description" content="A pub scorekeeper for Contract Whist — classic scoring, plus an optional drinking Twist mode. Bids in, pints poured, last hand decides it." />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Spectral:ital,wght@0,400;0,500;0,600;1,400&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
@@ -61,7 +61,7 @@
   .rule{height:1px;background:linear-gradient(90deg,transparent,var(--gold-dim),transparent);margin:14px 0}
 
   /* ---------- Tabs ---------- */
-  nav.tabs{display:flex;gap:6px;justify-content:center;margin:6px 0 18px}
+  nav.tabs{display:flex;gap:6px;justify-content:center;margin:6px 0 18px;flex-wrap:wrap}
   nav.tabs button{
     background:transparent;border:1px solid var(--line);color:var(--ash);
     padding:8px 16px;border-radius:999px;font-size:13px;letter-spacing:.12em;
@@ -117,6 +117,7 @@
     background:var(--head);box-shadow:0 0 6px rgba(239,226,196,.5)}
   .pint .name{font-size:12px;color:var(--head);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
   .pint .score{font-family:"Space Mono";font-size:18px;color:var(--gold)}
+  .pint .drinks{font-family:"Space Mono";font-size:11px;color:#e7a39d;margin-top:2px;min-height:14px}
   .pint.lead .glass{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold),0 0 16px -4px var(--gold)}
   .crown{color:var(--gold);font-size:12px;height:14px;line-height:14px}
 
@@ -137,16 +138,18 @@
   .entry.head{margin-bottom:6px}
   .entry.head span{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ash);text-align:center}
   .entry.head .pl{text-align:left}
-  .entry .pl{display:flex;align-items:center;gap:8px;min-width:0}
+  .entry .pl{display:flex;align-items:center;gap:8px;min-width:0;flex-wrap:wrap}
   .entry .pl .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .badge{font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;padding:2px 6px;border-radius:6px;flex:0 0 auto}
   .badge.deal{background:var(--ruby);color:var(--head)}
   .badge.first{background:var(--gold);color:#241b13}
+  .badge.made{background:rgba(122,154,78,.18);color:#b9cf8f;border:1px solid rgba(122,154,78,.4)}
+  .badge.give{background:rgba(199,154,59,.16);color:var(--gold);border:1px solid rgba(199,154,59,.4);cursor:pointer}
   .entry input{padding:11px 6px;text-align:center;font-family:"Space Mono";font-size:18px}
   .entry input.bad{border-color:var(--ruby);box-shadow:0 0 0 3px rgba(163,45,39,.22)}
   .entry input.made{border-color:var(--gold)}
 
-  /* ---------- Trumps picker ---------- */
+  /* ---------- Trumps picker (Whist) ---------- */
   .trumps{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:12px 0 2px}
   .trumps .lab{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--ash)}
   .trumps .lab b{color:var(--head);font-weight:600;text-transform:none;letter-spacing:0}
@@ -154,6 +157,26 @@
     background:#1b140d;color:var(--head);font-size:22px;line-height:1;display:inline-flex;align-items:center;justify-content:center;transition:.15s}
   .suitbtn[data-suit="H"],.suitbtn[data-suit="D"]{color:var(--ruby)}
   .suitbtn[aria-pressed="true"]{border-color:var(--gold);box-shadow:0 0 0 2px rgba(199,154,59,.4);background:rgba(199,154,59,.12)}
+
+  /* ---------- Drink hand-off picker (Twist) ----------
+     Replaces a dropdown: once a contract is made, every OTHER
+     player's row becomes a tappable target — tap their row to
+     send them the drink. Their own input still works normally. */
+  .give-prompt{margin:-2px 0 10px;padding:10px 12px;font-size:13.5px;color:var(--head);
+    background:rgba(199,154,59,.10);border:1px solid rgba(199,154,59,.35);border-radius:9px}
+  .give-prompt b{color:var(--gold)}
+  .entry.playphase.pickable{cursor:pointer;border-radius:10px;transition:.15s}
+  .entry.playphase.pickable:hover,.entry.playphase.pickable:active{background:rgba(199,154,59,.14)}
+  .entry.playphase.pickable .pl .nm{color:var(--gold)}
+
+  /* ---------- Round drinks recap (Twist) ---------- */
+  .recap{margin:0 0 14px;padding:10px 14px;background:var(--mid);border:1px solid var(--line);
+    border-radius:10px;font-size:13px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  .recap .recap-lbl{font-family:"Cinzel";font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ash);flex:0 0 auto}
+  .recap .recap-chip{font-family:"Space Mono";font-size:13px;color:var(--head);background:rgba(199,154,59,.10);
+    border:1px solid var(--line);border-radius:8px;padding:3px 9px}
+  .recap .recap-chip b{color:var(--gold)}
+  .recap .recap-empty{color:var(--ash);font-style:italic}
 
   .feedback{margin:12px 0;font-size:14px;min-height:22px}
   .feedback .tag{display:inline-block;padding:3px 9px;border-radius:8px;margin-right:8px;font-family:"Space Mono";font-size:13px}
@@ -225,11 +248,12 @@
     <div class="suits"><span class="r">&hearts;</span> &spades; <span class="r">&diams;</span> &clubs;</div>
     <div class="eyebrow">The Scorekeeper</div>
     <h1>Contract Whist</h1>
-    <div class="tagline">Bids in. Pints poured. The last hand decides it.</div>
+    <div class="tagline">Bids in. Pints poured. Twist optional.</div>
   </header>
 
   <nav class="tabs" id="tabs">
-    <button data-view="game" aria-selected="true">Game</button>
+    <button data-view="whist" aria-selected="true">Whist</button>
+    <button data-view="twist">Twist &#127866;</button>
     <button data-view="stats">Hall of Fame</button>
   </nav>
 
@@ -243,60 +267,49 @@
 
 <script>
 /* ================================================================
-   CONTRACT WHIST — SCOREKEEPER
+   CONTRACT WHIST — SCOREKEEPER  (Whist + Twist, one app)
    Single-file, host-anywhere. No build step, no framework.
 
-   HOUSE RULES (as configured):
+   TWO MODES, ONE TABLE:
+   • Whist — the straight game. Bid, play, score. Trumps are tracked
+     for stats (who hogs the lead suit, who makes it when they pick).
+   • Twist — same bidding/scoring rules, plus a drinking layer:
+       - Miss your contract → you're assigned drinks, 2 (configurable)
+         per trick you're out by.
+       - Make your contract → tap any OTHER player's row in that
+         round's entry to hand them a drink (no dropdown — their row
+         IS the picker; their own trick input still works as normal).
+       - Winner and loser each down a pint when the game ends.
+     Each recorded round shows a single combined "drinks this round"
+     recap rather than mixing the miss-penalty and hand-off signals.
+
+   HOUSE RULES (shared, configurable per game in Settings):
    • Rounds run inverse to cards: start at 7 cards → 7 rounds → down to 1.
    • Left of the dealer bids first; the dealer bids last.
    • Hook rule: the dealer may not make the bids total equal the tricks
      available (someone must be left over- or under-bid).
    • Last round (1 card): the hook is relaxed (bids may run up to one off).
    • Scoring: made your contract = 10 + tricks won. Missed it = tricks won.
-   All of the above are toggles in Settings, so bend them to your table.
    ================================================================ */
 
 /* ---------------------------------------------------------------
    1. CONFIG + STORAGE ADAPTER  (the future-proof seam)
    ---------------------------------------------------------------
    Everything the app reads/writes goes through `Storage`, an async
-   adapter. Today it's localStorage. To move all-time scores & stats
-   to a (nano) Supabase instance, flip CONFIG.backend to 'supabase',
-   fill in the creds, and implement the SupabaseAdapter methods —
-   the rest of the app does not change.
-*/
-const CONFIG = {
-  backend: "local",                 // "local" | "supabase"
-  supabase: { url: "", anonKey: "" } // fill these to go online
-};
+   adapter keyed by game `mode` ("whist" | "twist"). Today it's
+   pointed at Supabase, with EACH mode tracked in its OWN table —
+   Whist's classic scores stay in `cw_games` (unchanged from before),
+   and Twist's drink-tracking games live in a separate `cw_twist_games`
+   table, so the two Hall of Fames never mix data.
 
-/* ---- Local adapter: localStorage with in-memory fallback ---- */
-const mem = new Map();
-const LS = {
-  get(k){ try { return localStorage.getItem(k); } catch { return mem.get(k) ?? null; } },
-  set(k,v){ try { localStorage.setItem(k,v); } catch { mem.set(k,v); } },
-  del(k){ try { localStorage.removeItem(k); } catch { mem.delete(k); } }
-};
-const LocalAdapter = {
-  async getActive(){ const r = LS.get("cw_active"); return r ? JSON.parse(r) : null; },
-  async setActive(g){ LS.set("cw_active", JSON.stringify(g)); },
-  async clearActive(){ LS.del("cw_active"); },
-  async getGames(){ const r = LS.get("cw_games"); const m = r ? JSON.parse(r) : {}; return Object.values(m); },
-  async saveGame(g){ const r = LS.get("cw_games"); const m = r ? JSON.parse(r) : {}; m[g.id] = g; LS.set("cw_games", JSON.stringify(m)); },
-  label(){ return "Local table"; }
-};
+   To go back to pure on-device storage, flip CONFIG.backend to
+   'local' — the rest of the app does not change.
 
-const CONFIG = {
-  backend: "supabase",
-  supabase: {
-    url: "https://iyojwrkfqcxpwdoigmuz.supabase.co",
-    anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5b2p3cmtmcWN4cHdkb2lnbXV6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2Mzc1NTQsImV4cCI6MjA5ODIxMzU1NH0.rtduCfAYXYc2GtUZIE2TXKYKYzSp429y-IakQ5t43YE"
-  }
-};
-
-/* ---- Supabase adapter (dependency-free REST) ----
-   To go online: set CONFIG.backend = "supabase" and fill CONFIG.supabase
-   with your project URL + anon key, then run this in the Supabase SQL editor:
+   ONE-TIME SETUP — run BOTH blocks below in the Supabase SQL editor.
+   The first (cw_games) likely already exists from Whist. The second
+   (cw_twist_games) is new and required for the Twist tab's Hall of
+   Fame / drink stats to sync online — without it, Twist still works
+   fully on-device, it just won't sync across devices.
 
       create table cw_games (
         id           uuid primary key,
@@ -309,14 +322,69 @@ const CONFIG = {
         winner       text
       );
       alter table cw_games enable row level security;
-      -- Casual pub table: let the anon key read + write finished games.
       create policy "anon read"   on cw_games for select using (true);
       create policy "anon write"  on cw_games for insert with check (true);
       create policy "anon update" on cw_games for update using (true) with check (true);
 
-   Everything else (all-time stats, per-game-type splits) is computed
+      create table cw_twist_games (
+        id           uuid primary key,
+        created_at   timestamptz not null default now(),
+        finished_at  timestamptz,
+        players      jsonb not null,
+        settings     jsonb not null,   -- includes missMult, makeCount
+        start_dealer int  not null,
+        rounds       jsonb not null,   -- [{cards,dealerIndex,bids[],tricks[],giveTo[],recorded}]
+        winner       text
+      );
+      alter table cw_twist_games enable row level security;
+      create policy "anon read"   on cw_twist_games for select using (true);
+      create policy "anon write"  on cw_twist_games for insert with check (true);
+      create policy "anon update" on cw_twist_games for update using (true) with check (true);
+
+   Everything else (all-time stats, drink tallies) is computed
    client-side from the stored games, so the schema stays this simple.
 */
+const CONFIG = {
+  backend: "supabase",                // "local" | "supabase"
+  supabase: {
+    url: "https://iyojwrkfqcxpwdoigmuz.supabase.co",
+    anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5b2p3cmtmcWN4cHdkb2lnbXV6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2Mzc1NTQsImV4cCI6MjA5ODIxMzU1NH0.rtduCfAYXYc2GtUZIE2TXKYKYzSp429y-IakQ5t43YE"
+  }
+};
+
+// Per-mode storage keys / table names. Whist keeps the original,
+// unsuffixed keys + table so existing data isn't orphaned.
+function activeKey(mode){ return mode==="twist" ? "cw_active_twist" : "cw_active"; }
+function gamesKey(mode){ return mode==="twist" ? "cw_games_twist" : "cw_games"; }
+function tableName(mode){ return mode==="twist" ? "cw_twist_games" : "cw_games"; }
+
+/* ---- Local adapter: localStorage with in-memory fallback ---- */
+const mem = new Map();
+const LS = {
+  get(k){ try { return localStorage.getItem(k); } catch { return mem.get(k) ?? null; } },
+  set(k,v){ try { localStorage.setItem(k,v); } catch { mem.set(k,v); } },
+  del(k){ try { localStorage.removeItem(k); } catch { mem.delete(k); } }
+};
+const LocalAdapter = {
+  async getActive(mode){
+    const r = LS.get(activeKey(mode));
+    try { return r ? JSON.parse(r) : null; }
+    catch(e){ console.warn("Corrupt active store — clearing:", e); LS.del(activeKey(mode)); return null; }
+  },
+  async setActive(mode,g){ LS.set(activeKey(mode), JSON.stringify(g)); },
+  async clearActive(mode){ LS.del(activeKey(mode)); },
+  async getGames(mode){
+    const r = LS.get(gamesKey(mode));
+    let m = {};
+    try { m = r ? JSON.parse(r) : {}; }
+    catch(e){ console.warn("Corrupt games store — clearing:", e); LS.del(gamesKey(mode)); }
+    return Object.values(m);
+  },
+  async saveGame(mode,g){ const r = LS.get(gamesKey(mode)); const m = r ? JSON.parse(r) : {}; m[g.id] = g; LS.set(gamesKey(mode), JSON.stringify(m)); },
+  label(){ return "Local table"; }
+};
+
+/* ---- Supabase adapter (dependency-free REST) ---- */
 const SupabaseAdapter = {
   _h(){
     const k = CONFIG.supabase.anonKey;
@@ -324,34 +392,36 @@ const SupabaseAdapter = {
   },
   _url(path){ return CONFIG.supabase.url.replace(/\/$/,"") + "/rest/v1/" + path; },
   // The in-progress game stays on the device (fast + works offline).
-  async getActive(){ return LocalAdapter.getActive(); },
-  async setActive(g){ return LocalAdapter.setActive(g); },
-  async clearActive(){ return LocalAdapter.clearActive(); },
-  async getGames(){
+  async getActive(mode){ return LocalAdapter.getActive(mode); },
+  async setActive(mode,g){ return LocalAdapter.setActive(mode,g); },
+  async clearActive(mode){ return LocalAdapter.clearActive(mode); },
+  async getGames(mode){
+    const table = tableName(mode);
     try{
-      const res = await fetch(this._url("cw_games?select=*&finished_at=not.is.null&order=finished_at.asc"), { headers:this._h() });
+      const res = await fetch(this._url(`${table}?select=*&finished_at=not.is.null&order=finished_at.asc`), { headers:this._h() });
       if(!res.ok) throw new Error("HTTP "+res.status);
-      const games = (await res.json()).map(rowToGame);
-      try{ const m={}; games.forEach(g=>m[g.id]=g); LS.set("cw_games", JSON.stringify(m)); }catch{} // mirror for offline
+      const games = (await res.json()).map(row=>rowToGame(row,mode));
+      try{ const m={}; games.forEach(g=>m[g.id]=g); LS.set(gamesKey(mode), JSON.stringify(m)); }catch{} // mirror for offline
       return games;
-    }catch(e){ console.warn("Supabase getGames failed — using local cache:", e); return LocalAdapter.getGames(); }
+    }catch(e){ console.warn(`Supabase getGames(${mode}) failed — using local cache:`, e); return LocalAdapter.getGames(mode); }
   },
-  async saveGame(g){
-    LocalAdapter.saveGame(g); // local first, always — never lose a result
+  async saveGame(mode,g){
+    LocalAdapter.saveGame(mode,g); // local first, always — never lose a result
+    const table = tableName(mode);
     try{
-      const res = await fetch(this._url("cw_games?on_conflict=id"), {
+      const res = await fetch(this._url(`${table}?on_conflict=id`), {
         method:"POST",
         headers:{ ...this._h(), Prefer:"resolution=merge-duplicates,return=minimal" },
         body: JSON.stringify(gameToRow(g))
       });
       if(!res.ok) console.warn("Supabase saveGame HTTP", res.status, await res.text());
-    }catch(e){ console.warn("Supabase saveGame failed (kept locally):", e); }
+    }catch(e){ console.warn(`Supabase saveGame(${mode}) failed (kept locally):`, e); }
   },
   label(){ return "Supabase · online"; }
 };
 function gameToRow(g){ return { id:g.id, created_at:g.createdAt, finished_at:g.finishedAt,
   players:g.players, settings:g.settings, start_dealer:g.startDealer, rounds:g.rounds, winner:g.winner||null }; }
-function rowToGame(r){ return { id:r.id, createdAt:r.created_at, finishedAt:r.finished_at,
+function rowToGame(r,mode){ return { id:r.id, mode, createdAt:r.created_at, finishedAt:r.finished_at,
   players:r.players, settings:r.settings, startDealer:r.start_dealer, rounds:r.rounds, winner:r.winner }; }
 
 const Storage = CONFIG.backend === "supabase" ? SupabaseAdapter : LocalAdapter;
@@ -384,16 +454,17 @@ function focusAdvance(inputs, current, max, actionSel){
   }
 }
 
-const DEFAULTS = { startCards:7, bonus:10, addTricks:true, failTricks:true, hook:true, relaxLast:true };
+const DEFAULTS = { startCards:7, bonus:10, addTricks:true, failTricks:true, hook:true, relaxLast:true, missMult:2, makeCount:1 };
 // Shown as greyed placeholder text in the setup fields (NOT pre-filled values),
 // and used as the fallback name if a field is left blank.
-const EXAMPLE_NAMES = ["Aoife","Liam","Niamh","Cillian","Saoirse","Cormac","Maeve","Declan"];
+const EXAMPLE_NAMES = ["Aoife","Liam","Niamh","Cillian","Saoirse","Cormac","Maeve","Declan","Tadhg","Roisin","Eoin","Brid","Fionn"];
 const SUITS = [["S","\u2660","Spades"],["H","\u2665","Hearts"],["D","\u2666","Diamonds"],["C","\u2663","Clubs"]];
+function maxPlayersFor(mode){ return mode==="whist" ? 8 : 13; }
 
 /* ---------------------------------------------------------------
-   3. GAME LOGIC
+   3. GAME LOGIC  (shared by both modes)
    --------------------------------------------------------------- */
-function newGame(players, startDealer, settings){
+function newGame(players, startDealer, settings, mode){
   const n = players.length;
   const rounds = [];
   for(let c = settings.startCards; c >= 1; c--){
@@ -403,12 +474,13 @@ function newGame(players, startDealer, settings){
       dealerIndex:(startDealer + r) % n,
       bids:Array(n).fill(null),
       tricks:Array(n).fill(null),
-      trumps:null,            // suit code chosen by the highest bidder: "S"|"H"|"D"|"C"
+      trumps:null,              // Whist: suit code chosen by the highest bidder
+      giveTo:Array(n).fill(null), // Twist: giveTo[giver] = recipient index
       bidsLocked:false,
       recorded:false
     });
   }
-  return { id:uid(), createdAt:new Date().toISOString(), finishedAt:null,
+  return { id:uid(), mode, createdAt:new Date().toISOString(), finishedAt:null,
     players:players.slice(), settings:{...settings}, startDealer, rounds, winner:null };
 }
 // Bid order for a round: left of dealer first … dealer last.
@@ -437,36 +509,94 @@ function leaders(g){
   const t = totals(g); const max = Math.max(...t);
   return { totals:t, max, winners:t.map((v,i)=>v===max?i:-1).filter(i=>i>=0) };
 }
+function losers(g){
+  const t = totals(g); const min = Math.min(...t);
+  return { totals:t, min, losers:t.map((v,i)=>v===min?i:-1).filter(i=>i>=0) };
+}
+
+/* ---- Twist-only: drinks ----
+   Drinks for a SINGLE round: 2 (settings.missMult) per trick missed by,
+   plus 1 (settings.makeCount) for every contract-made hand-off in that
+   round. A stale/invalid giveTo (e.g. the giver later un-makes their
+   contract by editing tricks) is ignored — only counts if bid===tricks
+   for that giver right now. */
+function roundDrinks(r, settings){
+  const n = r.bids.length;
+  const d = Array(n).fill(0);
+  const missMult = settings.missMult ?? 2;
+  const makeCount = settings.makeCount ?? 1;
+  r.bids.forEach((b,i)=>{
+    const tr = r.tricks[i];
+    if(b!=null && tr!=null && b!==tr) d[i] += Math.abs(b-tr)*missMult;
+  });
+  (r.giveTo||[]).forEach((target,i)=>{
+    if(target!=null && r.bids[i]!=null && r.tricks[i]!=null && r.bids[i]===r.tricks[i]){
+      d[target] += makeCount;
+    }
+  });
+  return d;
+}
+// Drinks owed per player across the whole game so far, plus the final
+// winner's/loser's pint once the game is finished.
+function drinkTotals(g){
+  const n = g.players.length;
+  const d = Array(n).fill(0);
+  g.rounds.forEach(r=>{
+    if(!r.recorded) return;
+    roundDrinks(r, g.settings).forEach((v,i)=> d[i]+=v);
+  });
+  if(g.finishedAt){
+    leaders(g).winners.forEach(i=> d[i] += 1);
+    losers(g).losers.forEach(i=> d[i] += 1);
+  }
+  return d;
+}
 
 /* ---------------------------------------------------------------
    4. APP STATE + RENDER
    --------------------------------------------------------------- */
-const state = { view:"game", active:null, games:[], editing:null, setupPlayers:["","","",""], statFilter:"all" };
+const state = {
+  tab: "whist",                 // "whist" | "twist" | "stats"
+  active: { whist:null, twist:null },
+  games:  { whist:[], twist:[] },
+  editing: null,
+  setupPlayers: { whist:["","","",""], twist:["","","",""] },
+  statFilter: "all",
+  statMode: "whist"              // which Hall of Fame dataset is showing
+};
 
 async function boot(){
   $("#storeBadge").textContent = Storage.label();
-  state.active = await Storage.getActive();
-  state.games  = await Storage.getGames();
+  try{
+    state.active.whist = await Storage.getActive("whist");
+    state.active.twist = await Storage.getActive("twist");
+    state.games.whist  = await Storage.getGames("whist");
+    state.games.twist  = await Storage.getGames("twist");
+  }catch(e){
+    console.warn("Boot storage read failed — starting fresh:", e);
+  }
   wireTabs();
   render();
 }
 function wireTabs(){
-  $$("#tabs button").forEach(b=> b.onclick = ()=>{ state.view=b.dataset.view; state.editing=null; render(); });
+  $$("#tabs button").forEach(b=> b.onclick = ()=>{ state.tab=b.dataset.view; state.editing=null; render(); });
 }
-function setTab(){ $$("#tabs button").forEach(b=> b.setAttribute("aria-selected", b.dataset.view===state.view)); }
+function setTab(){ $$("#tabs button").forEach(b=> b.setAttribute("aria-selected", b.dataset.view===state.tab)); }
 
 function render(){
   setTab();
   const app = $("#app");
-  if(state.view==="stats"){ app.innerHTML = viewStats(); wireStats(); return; }
-  if(!state.active){ app.innerHTML = viewSetup(); wireSetup(); return; }
-  app.innerHTML = viewGame();
-  wireGame();
+  if(state.tab==="stats"){ app.innerHTML = viewStats(); wireStats(); return; }
+  const mode = state.tab; // "whist" | "twist"
+  if(!state.active[mode]){ app.innerHTML = viewSetup(mode); wireSetup(mode); return; }
+  app.innerHTML = viewGame(mode);
+  wireGame(mode);
 }
 
 /* ---------------- SETUP ---------------- */
-function viewSetup(){
-  const p = state.setupPlayers;
+function viewSetup(mode){
+  const p = state.setupPlayers[mode];
+  const maxP = maxPlayersFor(mode);
   const max = (n)=> Math.min(13, Math.floor(52 / Math.max(2,n)));
   const rows = p.map((nm,i)=>`
     <div class="player-edit">
@@ -475,12 +605,14 @@ function viewSetup(){
       <button data-rm="${i}" ${p.length<=2?"disabled":""} aria-label="Remove">&times;</button>
     </div>`).join("");
   const startMax = max(p.length);
+  const title = mode==="whist" ? "New Game · Contract Whist" : "New Game · Contract Twist";
+  const sub = mode==="whist" ? `Add the table. 2–${maxP} players.` : `Add the table. 2–${maxP} players. Bring pints.`;
   return `
   <section class="panel">
-    <h2>New Game</h2>
-    <div class="sub">Add the table. 2–8 players.</div>
+    <h2>${title}</h2>
+    <div class="sub">${sub}</div>
     <div style="margin-top:14px">${rows}</div>
-    <button class="btn ghost sm" id="addP" ${p.length>=8?"disabled":""} style="margin-top:4px">+ Add player</button>
+    <button class="btn ghost sm" id="addP" ${p.length>=maxP?"disabled":""} style="margin-top:4px">+ Add player</button>
 
     <label class="fld">First dealer</label>
     <select id="dealer">${p.map((nm,i)=>`<option value="${i}">${esc(nm||EXAMPLE_NAMES[i]||("Player "+(i+1)))}</option>`).join("")}</select>
@@ -503,37 +635,44 @@ function viewSetup(){
         <label class="fld"><input type="checkbox" id="s_hook" ${DEFAULTS.hook?"checked":""}/> Enforce hook rule (dealer can't make bids = tricks)</label>
         <label class="fld"><input type="checkbox" id="s_relax" ${DEFAULTS.relaxLast?"checked":""}/> Relax the hook on the last round</label>
         <p class="src">Defaults match your table: 10 + tricks for a made contract, tricks won if missed, dealer hooked except on the final hand.</p>
+        ${mode==="twist" ? `
+        <label class="fld">The Twist · drinks per trick missed by</label>
+        <input type="number" id="s_missMult" value="${DEFAULTS.missMult}" min="0" max="10"/>
+        <label class="fld">The Twist · drinks awarded per contract made</label>
+        <input type="number" id="s_makeCount" value="${DEFAULTS.makeCount}" min="0" max="10"/>
+        <p class="src">Miss your bid and you're assigned drinks — ${DEFAULTS.missMult} for every trick you're out by. Make your contract and tap another player's row to hand them ${DEFAULTS.makeCount} drink(s). Winner and loser down their pint when the last hand's scored.</p>` : ``}
       </div>
     </details>
   </section>`;
 }
-function wireSetup(){
+function wireSetup(mode){
+  const maxP = maxPlayersFor(mode);
   $$('#app input[data-pi]').forEach(inp=>{
-    inp.oninput = ()=>{ state.setupPlayers[+inp.dataset.pi] = inp.value; updateRoundsHint(); refreshDealerOpts(); };
+    inp.oninput = ()=>{ state.setupPlayers[mode][+inp.dataset.pi] = inp.value; updateRoundsHint(mode); refreshDealerOpts(mode); };
   });
   $$('#app button[data-rm]').forEach(b=>{
-    b.onclick = ()=>{ state.setupPlayers.splice(+b.dataset.rm,1); render(); wireSetup(); };
+    b.onclick = ()=>{ state.setupPlayers[mode].splice(+b.dataset.rm,1); render(); wireSetup(mode); };
   });
-  $("#addP") && ($("#addP").onclick = ()=>{ state.setupPlayers.push(""); render(); wireSetup(); });
-  $("#startCards").oninput = updateRoundsHint;
-  updateRoundsHint();
-  $("#startGame").onclick = startGame;
+  $("#addP") && ($("#addP").onclick = ()=>{ if(state.setupPlayers[mode].length<maxP){ state.setupPlayers[mode].push(""); render(); wireSetup(mode); } });
+  $("#startCards").oninput = ()=>updateRoundsHint(mode);
+  updateRoundsHint(mode);
+  $("#startGame").onclick = ()=>startGame(mode);
 }
-function refreshDealerOpts(){
+function refreshDealerOpts(mode){
   const sel = $("#dealer"); if(!sel) return; const cur = sel.value;
-  sel.innerHTML = state.setupPlayers.map((nm,i)=>`<option value="${i}">${esc(nm||EXAMPLE_NAMES[i]||("Player "+(i+1)))}</option>`).join("");
-  sel.value = Math.min(cur, state.setupPlayers.length-1);
+  sel.innerHTML = state.setupPlayers[mode].map((nm,i)=>`<option value="${i}">${esc(nm||EXAMPLE_NAMES[i]||("Player "+(i+1)))}</option>`).join("");
+  sel.value = Math.min(cur, state.setupPlayers[mode].length-1);
 }
-function updateRoundsHint(){
+function updateRoundsHint(mode){
   const sc = clampInt($("#startCards").value,1,13) || 1;
-  const n = state.setupPlayers.length;
+  const n = state.setupPlayers[mode].length;
   const cap = Math.min(13, Math.floor(52/Math.max(2,n)));
   if(sc>cap){ $("#startCards").value = cap; }
   const v = clampInt($("#startCards").value,1,13)||1;
   $("#roundsHint").textContent = `${v} rounds · ${v} → 1 cards · ${n} players`;
 }
-function startGame(){
-  const names = state.setupPlayers.map((s,i)=> (s.trim()|| EXAMPLE_NAMES[i] || ("Player "+(i+1))));
+function startGame(mode){
+  const names = state.setupPlayers[mode].map((s,i)=> (s.trim()|| EXAMPLE_NAMES[i] || ("Player "+(i+1))));
   if(names.length<2) return;
   const settings = {
     startCards: clampInt($("#startCards").value,1,13)||7,
@@ -543,30 +682,36 @@ function startGame(){
     hook: $("#s_hook").checked,
     relaxLast: $("#s_relax").checked
   };
+  if(mode==="twist"){
+    settings.missMult = clampInt($("#s_missMult").value,0,10) ?? 2;
+    settings.makeCount = clampInt($("#s_makeCount").value,0,10) ?? 1;
+  }
   const dealer = parseInt($("#dealer").value,10)||0;
-  state.active = newGame(names, dealer, settings);
-  Storage.setActive(state.active);
-  state.view="game"; render();
+  const g = newGame(names, dealer, settings, mode);
+  state.active[mode] = g;
+  Storage.setActive(mode, g);
+  render();
 }
 
 /* ---------------- GAME ---------------- */
-function viewGame(){
-  const g = state.active;
+function viewGame(mode){
+  const g = state.active[mode];
   const t = totals(g);
   const ci = currentRoundIndex(g);
   const done = ci === -1;
   const ld = leaders(g);
+  const dr = mode==="twist" ? drinkTotals(g) : null;
 
   return `
-    ${shelf(g,t,ld)}
-    ${done && state.editing===null ? winnerPanel(g,ld,t) : entryPanel(g)}
-    ${scorepad(g,t)}
+    ${shelf(g,t,ld,dr,mode)}
+    ${done && state.editing===null ? winnerPanel(g,ld,t,mode) : entryPanel(g,mode)}
+    ${scorepad(g,t,mode)}
     <div class="row" style="margin-top:14px">
       <button class="btn ghost sm" id="abandon">Abandon game</button>
     </div>`;
 }
 
-function shelf(g,t,ld){
+function shelf(g,t,ld,dr,mode){
   const max = Math.max(1, ld.max);
   const min = Math.min(0, ...t);
   const range = Math.max(1, max - Math.min(0,min));
@@ -578,12 +723,23 @@ function shelf(g,t,ld){
       <div class="glass"><div class="fill" style="height:${pct}%"><div class="foam"></div></div></div>
       <div class="name" title="${esc(nm)}">${esc(nm)}</div>
       <div class="score">${t[i]}</div>
+      ${mode==="twist" ? `<div class="drinks">${dr[i]>0?`&#127866; ${dr[i]}`:''}</div>` : ''}
     </div>`;
   }).join("");
   return `<div class="shelf">${pints}</div>`;
 }
 
-function entryPanel(g){
+// Single combined "drinks this round" recap — replaces mixing the
+// miss-penalty and hand-off signals together.
+function roundRecapHTML(g, ri){
+  const r = g.rounds[ri];
+  const d = roundDrinks(r, g.settings);
+  const parts = g.players.map((nm,i)=> d[i]>0 ? `<span class="recap-chip">${esc(nm)} <b>+${d[i]}</b></span>` : '').filter(Boolean);
+  const body = parts.length ? parts.join(' ') : `<span class="recap-empty">— a dry hand, nobody drinks.</span>`;
+  return `<div class="recap"><span class="recap-lbl">Round ${ri+1} drinks</span>${body}</div>`;
+}
+
+function entryPanel(g, mode){
   const idx = state.editing!==null ? state.editing : currentRoundIndex(g);
   const r = g.rounds[idx];
   const n = g.players.length;
@@ -592,7 +748,7 @@ function entryPanel(g){
   const firstBidder = order[0];
   const phase = r.bidsLocked ? "play" : "bid";
 
-  // --- Phase 1: bidding (dealer hooked) ---
+  // --- Phase 1: bidding (dealer hooked) — identical for both modes ---
   const rowsBid = order.map(pi=>{
     const isDealer = pi===r.dealerIndex, isFirst = pi===firstBidder;
     return `<div class="entry bidphase" data-row="${pi}">
@@ -606,39 +762,78 @@ function entryPanel(g){
     </div>`;
   }).join("");
 
-  // --- Phase 2: recording tricks (bids locked) ---
-  const rowsPlay = order.map(pi=>{
-    const isDealer = pi===r.dealerIndex;
-    return `<div class="entry playphase" data-row="${pi}">
-      <div class="pl"><span class="nm">${esc(g.players[pi])}</span>${isDealer?'<span class="badge deal">Dealer</span>':''}</div>
-      <div class="lockchip" title="bid">${r.bids[pi]??0}</div>
-      <input class="trk" inputmode="numeric" type="number" min="0" max="${r.cards}" data-trk="${pi}" value="${r.tricks[pi]??''}" placeholder="–"/>
-    </div>`;
-  }).join("");
-
   const bidBody = `
     <div class="entry bidphase head"><span class="pl">Player</span><span>Bid</span></div>
     ${rowsBid}
     <div class="feedback" id="fb"></div>
     <button class="btn" id="lock">Lock bids &rarr;</button>`;
 
-  // Trumps are picked by the highest bidder (optional to record — used for stats).
-  const hb = highestBidder(g, r);
-  const trumpsPicker = `
-    <div class="trumps">
-      <span class="lab">Trumps${hb!=null?` · <b>${esc(g.players[hb])}</b> picks`:''}</span>
-      ${SUITS.map(([code,sym])=>`<button type="button" class="suitbtn" data-suit="${code}" aria-pressed="${r.trumps===code}">${sym}</button>`).join("")}
-    </div>`;
+  let playBody;
+  if(mode==="whist"){
+    // --- Phase 2 (Whist): recording tricks + trumps, bids locked ---
+    const rowsPlay = order.map(pi=>{
+      const isDealer = pi===r.dealerIndex;
+      return `<div class="entry playphase" data-row="${pi}">
+        <div class="pl"><span class="nm">${esc(g.players[pi])}</span>${isDealer?'<span class="badge deal">Dealer</span>':''}</div>
+        <div class="lockchip" title="bid">${r.bids[pi]??0}</div>
+        <input class="trk" inputmode="numeric" type="number" min="0" max="${r.cards}" data-trk="${pi}" value="${r.tricks[pi]??''}" placeholder="–"/>
+      </div>`;
+    }).join("");
 
-  const playBody = `
-    <div class="entry playphase head"><span class="pl">Player</span><span>Bid</span><span>Won</span></div>
-    ${rowsPlay}
-    ${trumpsPicker}
-    <div class="feedback" id="fb"></div>
-    <button class="btn" id="record">${state.editing!==null?'Save round':'Record round'}</button>
-    <button class="btn ghost sm" id="editbids" style="margin-top:10px">&larr; Edit bids</button>`;
+    const hb = highestBidder(g, r);
+    const trumpsPicker = `
+      <div class="trumps">
+        <span class="lab">Trumps${hb!=null?` · <b>${esc(g.players[hb])}</b> picks`:''}</span>
+        ${SUITS.map(([code,sym])=>`<button type="button" class="suitbtn" data-suit="${code}" aria-pressed="${r.trumps===code}">${sym}</button>`).join("")}
+      </div>`;
 
-  return `<section class="panel" id="entry" data-idx="${idx}" data-phase="${phase}">
+    playBody = `
+      <div class="entry playphase head"><span class="pl">Player</span><span>Bid</span><span>Won</span></div>
+      ${rowsPlay}
+      ${trumpsPicker}
+      <div class="feedback" id="fb"></div>
+      <button class="btn" id="record">${state.editing!==null?'Save round':'Record round'}</button>
+      <button class="btn ghost sm" id="editbids" style="margin-top:10px">&larr; Edit bids</button>`;
+  } else {
+    // --- Phase 2 (Twist): recording tricks + click-to-assign drinks ---
+    const tr = r.tricks, gv = r.giveTo || Array(n).fill(null);
+    const madeNow = order.filter(pi=> tr[pi]!=null && tr[pi]===r.bids[pi]);
+    const pending = madeNow.filter(pi=> gv[pi]==null);
+    const activeGiver = pending.length ? pending[0] : null;
+
+    const rowsPlay = order.map(pi=>{
+      const isDealer = pi===r.dealerIndex;
+      const made = tr[pi]!=null && tr[pi]===r.bids[pi];
+      let tag = '';
+      if(made && gv[pi]!=null) tag = `<span class="badge give" data-undo="1">&rarr; ${esc(g.players[gv[pi]])} &#127866;</span>`;
+      else if(made && activeGiver===pi) tag = `<span class="badge made">Made &#127866;</span>`;
+      const isPickable = activeGiver!=null && pi!==activeGiver;
+      return `<div class="entry playphase${isPickable?' pickable':''}" data-row="${pi}">
+        <div class="pl"><span class="nm">${esc(g.players[pi])}</span>${isDealer?'<span class="badge deal">Dealer</span>':''}<span data-tag>${tag}</span></div>
+        <div class="lockchip" title="bid">${r.bids[pi]??0}</div>
+        <input class="trk" inputmode="numeric" type="number" min="0" max="${r.cards}" data-trk="${pi}" value="${r.tricks[pi]??''}" placeholder="–"/>
+      </div>`;
+    }).join("");
+
+    const givePrompt = `<div class="give-prompt" id="givePrompt" style="display:${activeGiver!=null?'':'none'}">${
+      activeGiver!=null ? `&#127866; <b>${esc(g.players[activeGiver])}</b> made it — tap who gets the drink` : ''
+    }</div>`;
+
+    playBody = `
+      <div class="entry playphase head"><span class="pl">Player</span><span>Bid</span><span>Won</span></div>
+      ${rowsPlay}
+      ${givePrompt}
+      <div class="feedback" id="fb"></div>
+      <button class="btn" id="record">${state.editing!==null?'Save round':'Record round'}</button>
+      <button class="btn ghost sm" id="editbids" style="margin-top:10px">&larr; Edit bids</button>`;
+  }
+
+  // End-of-round recap for the round just played (Twist only) — a single
+  // straightforward "who drinks how much" line, shown above the next round.
+  const recap = (mode==="twist" && state.editing===null && idx>0 && g.rounds[idx-1].recorded)
+    ? roundRecapHTML(g, idx-1) : '';
+
+  return `${recap}<section class="panel" id="entry" data-idx="${idx}" data-phase="${phase}" data-mode="${mode}">
     <div class="round-head">
       <div class="rno">Round ${idx+1}<span style="color:var(--ash);font-size:14px"> / ${g.rounds.length}</span></div>
       <div class="cards">${r.cards} card${r.cards>1?'s':''} · ${r.cards} trick${r.cards>1?'s':''}</div>
@@ -650,16 +845,18 @@ function entryPanel(g){
   </section>`;
 }
 
-function scorepad(g,t){
+function scorepad(g,t,mode){
   const n = g.players.length;
   const head = `<tr><th>Rnd</th>${g.players.map(p=>`<th>${esc(p)}</th>`).join("")}</tr>`;
   const body = g.rounds.map((r,ri)=>{
     if(!r.recorded && ri!==state.editing) return ""; // only show played (or being-edited) rounds
+    const rd = mode==="twist" && r.recorded ? roundDrinks(r, g.settings) : null;
     const cells = g.players.map((_,pi)=>{
       const made = r.bids[pi]!=null && r.bids[pi]===r.tricks[pi];
       const sc = roundScore(r.bids[pi], r.tricks[pi], g.settings);
       const bidTxt = r.bids[pi]==null?'·':r.bids[pi];
-      return `<td class="sc"><span class="${made?'made':''}">${sc}</span><br><small style="color:#9a7b3a">bid ${bidTxt}/${r.tricks[pi]??'·'}</small></td>`;
+      const note = (rd && rd[pi]>0) ? `<br><small style="color:#e7a39d">&#127866; +${rd[pi]}</small>` : '';
+      return `<td class="sc"><span class="${made?'made':''}">${sc}</span><br><small style="color:#9a7b3a">bid ${bidTxt}/${r.tricks[pi]??'·'}</small>${note}</td>`;
     }).join("");
     const cls = ri===state.editing?'editing':'';
     return `<tr class="editable ${cls}" data-edit="${ri}"><td class="rh">${r.cards}c</td>${cells}</tr>`;
@@ -672,18 +869,31 @@ function scorepad(g,t){
   </div>`;
 }
 
-function winnerPanel(g, ld, t){
+function winnerPanel(g, ld, t, mode){
   const order = g.players.map((nm,i)=>({nm,i,pts:t[i]})).sort((a,b)=>b.pts-a.pts);
   const champs = ld.winners.map(i=>g.players[i]).join(" & ");
+
+  let dr=null, downers='';
+  if(mode==="twist"){
+    dr = drinkTotals(g);
+    const lo = losers(g);
+    downers = [...new Set([...ld.winners, ...lo.losers])].map(i=>g.players[i]).join(" & ");
+  }
+
   const li = order.map((row,pos)=>{
     const win = ld.winners.includes(row.i);
-    return `<li class="${win?'win':''}"><span><span class="pos">${pos+1}</span>${esc(row.nm)}</span><span class="pts">${row.pts}</span></li>`;
+    const drinkTxt = (mode==="twist" && dr[row.i]) ? ` &middot; &#127866;${dr[row.i]}` : '';
+    return `<li class="${win?'win':''}"><span><span class="pos">${pos+1}</span>${esc(row.nm)}</span><span class="pts">${row.pts}${drinkTxt}</span></li>`;
   }).join("");
-  return `<section class="panel">
+
+  const recap = mode==="twist" ? roundRecapHTML(g, g.rounds.length-1) : '';
+
+  return `${recap}<section class="panel">
     <div class="winner">
       <div class="cup">&#127881;</div>
       <h2>${esc(champs)}</h2>
       <div class="sub">${ld.winners.length>1?'A shared pot — split the next round.':'Winner takes the pot.'}</div>
+      ${mode==="twist" ? `<div class="sub" style="color:var(--gold);margin-top:6px">&#127866; ${esc(downers)} — down your pint!</div>` : ''}
     </div>
     <ul class="standings">${li}</ul>
     <div class="row">
@@ -694,36 +904,38 @@ function winnerPanel(g, ld, t){
 }
 
 /* ---------------- GAME WIRING ---------------- */
-function wireGame(){
+function wireGame(mode){
   // scorepad row editing
   $$('#app tr[data-edit]').forEach(tr=> tr.onclick = ()=>{ state.editing = +tr.dataset.edit; render(); });
 
   $("#abandon") && ($("#abandon").onclick = ()=>{
     if(confirm("Abandon this game? It won't be saved to the Hall of Fame.")){
-      Storage.clearActive(); state.active=null; state.editing=null; render();
+      Storage.clearActive(mode); state.active[mode]=null; state.editing=null; render();
     }
   });
   $("#rematch") && ($("#rematch").onclick = ()=>{
-    const g=state.active; const next=newGame(g.players,(g.startDealer+1)%g.players.length,g.settings);
-    state.active=next; Storage.setActive(next); state.editing=null; render();
+    const g=state.active[mode]; const next=newGame(g.players,(g.startDealer+1)%g.players.length,g.settings,mode);
+    state.active[mode]=next; Storage.setActive(mode,next); state.editing=null; render();
   });
   $("#newgame") && ($("#newgame").onclick = ()=>{
-    state.setupPlayers = state.active.players.slice();
-    Storage.clearActive(); state.active=null; state.editing=null; render();
+    state.setupPlayers[mode] = state.active[mode].players.slice();
+    Storage.clearActive(mode); state.active[mode]=null; state.editing=null; render();
   });
   $("#cancelEdit") && ($("#cancelEdit").onclick = ()=>{ state.editing=null; render(); });
 
-  if($("#entry")) wireEntry();
+  if($("#entry")) wireEntry(mode);
 }
 
-function wireEntry(){
+function wireEntry(mode){
   const panel = $("#entry"); if(!panel) return;
-  const g = state.active;
+  const g = state.active[mode];
   const idx = +panel.dataset.idx;
   const r = g.rounds[idx];
   const phase = panel.dataset.phase;
   const isLast = idx === g.rounds.length-1;
   const relaxed = isLast && g.settings.relaxLast;
+  const n = g.players.length;
+  const order = bidOrder(r, n);
 
   if(phase === "bid"){
     const readBids = ()=>{ const b=r.bids.slice();
@@ -761,7 +973,7 @@ function wireEntry(){
     $$('#entry input.bid').forEach(inp=>{
       inp.addEventListener('input', ()=>{ update(); focusAdvance($$('#entry input.bid'), inp, r.cards, '#lock'); });
       inp.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); focusAdvance($$('#entry input.bid'), inp, r.cards, '#lock'); } });
-      inp.addEventListener('change', ()=>{ r.bids = readBids(); Storage.setActive(g); });
+      inp.addEventListener('change', ()=>{ r.bids = readBids(); Storage.setActive(mode,g); });
     });
     update();
 
@@ -772,10 +984,10 @@ function wireEntry(){
       if(g.settings.hook && !relaxed && sumB===r.cards){
         $('#fb').innerHTML = `<span class="tag warn">Bids can't total ${r.cards}. The dealer must change.</span>`; return;
       }
-      r.bids = bids; r.bidsLocked = true; Storage.setActive(g); render();
+      r.bids = bids; r.bidsLocked = true; Storage.setActive(mode,g); render();
     };
 
-  } else { // ---- play phase ----
+  } else if(mode==="whist"){ // ---- Whist play phase ----
     const readTr = ()=>{ const t=r.tricks.slice();
       $$('#entry input.trk').forEach(inp=>{ const pi=+inp.dataset.trk; t[pi]= inp.value===''? null : clampInt(inp.value,0,r.cards); });
       return t; };
@@ -801,7 +1013,7 @@ function wireEntry(){
     $$('#entry input.trk').forEach(inp=>{
       inp.addEventListener('input', ()=>{ update(); focusAdvance($$('#entry input.trk'), inp, r.cards, '#record'); });
       inp.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); focusAdvance($$('#entry input.trk'), inp, r.cards, '#record'); } });
-      inp.addEventListener('change', ()=>{ r.tricks = readTr(); Storage.setActive(g); });
+      inp.addEventListener('change', ()=>{ r.tricks = readTr(); Storage.setActive(mode,g); });
     });
     update();
 
@@ -811,7 +1023,7 @@ function wireEntry(){
         const code = btn.dataset.suit;
         r.trumps = (r.trumps===code) ? null : code;
         $$('#entry .suitbtn').forEach(b=> b.setAttribute('aria-pressed', b.dataset.suit===r.trumps));
-        Storage.setActive(g);
+        Storage.setActive(mode,g);
       };
     });
 
@@ -821,27 +1033,149 @@ function wireEntry(){
         $('#fb').innerHTML = `<span class="tag warn">Tricks must total exactly ${r.cards}.</span>`; return;
       }
       r.tricks = tr; r.recorded = true; r.bidsLocked = true;
-      state.editing = null; finishIfDone(g); Storage.setActive(g); render();
+      state.editing = null; finishIfDone(g,mode); Storage.setActive(mode,g); render();
     };
-    $('#editbids').onclick = ()=>{ r.bidsLocked = false; Storage.setActive(g); render(); };
+    $('#editbids').onclick = ()=>{ r.bidsLocked = false; Storage.setActive(mode,g); render(); };
+
+  } else { // ---- Twist play phase: tap-to-assign drinks, no dropdown ----
+    if(!r.giveTo) r.giveTo = Array(n).fill(null);
+
+    const readTr = ()=>{ const t=r.tricks.slice();
+      $$('#entry input.trk').forEach(inp=>{ const pi=+inp.dataset.trk; t[pi]= inp.value===''? null : clampInt(inp.value,0,r.cards); });
+      return t; };
+
+    // Who is the FIRST made-contract player still waiting on a recipient?
+    // (Sequential: resolve one giver at a time, even if several made it.)
+    const computeGive = (trLive)=>{
+      const madeNow = order.filter(pi=> trLive[pi]!=null && trLive[pi]===r.bids[pi]);
+      const gv = r.giveTo;
+      const pending = madeNow.filter(pi=> gv[pi]==null);
+      return { madeNow, gv, activeGiver: pending.length ? pending[0] : null };
+    };
+
+    const promptEl = $('#givePrompt');
+
+    const update = ()=>{
+      const tr = readTr();
+      const allT = tr.every(x=>x!=null);
+      const sumT = tr.reduce((a,x)=>a+(x||0),0);
+      const trOk = allT && sumT===r.cards;
+      const { madeNow, gv, activeGiver } = computeGive(tr);
+
+      $$('#entry .entry.playphase[data-row]').forEach(row=>{
+        const pi = +row.dataset.row;
+        const ti = row.querySelector('.trk');
+        const made = tr[pi]!=null && tr[pi]===r.bids[pi];
+        if(ti){
+          ti.classList.toggle('made', made);
+          ti.classList.toggle('bad', allT && sumT!==r.cards);
+        }
+        row.classList.toggle('pickable', activeGiver!=null && pi!==activeGiver);
+        const tagEl = row.querySelector('[data-tag]');
+        if(tagEl){
+          if(made && gv[pi]!=null) tagEl.innerHTML = `<span class="badge give" data-undo="1">&rarr; ${esc(g.players[gv[pi]])} &#127866;</span>`;
+          else if(made && activeGiver===pi) tagEl.innerHTML = `<span class="badge made">Made &#127866;</span>`;
+          else tagEl.innerHTML = '';
+        }
+      });
+
+      if(promptEl){
+        if(activeGiver!=null){ promptEl.style.display=''; promptEl.innerHTML = `&#127866; <b>${esc(g.players[activeGiver])}</b> made it — tap who gets the drink`; }
+        else promptEl.style.display='none';
+      }
+
+      const rem = r.cards - sumT;
+      const tags = [`<span class="tag ${trOk?'good':(allT?'warn':'info')}">tricks ${sumT} / ${r.cards}</span>`];
+      if(allT && sumT!==r.cards) tags.push(`<span class="tag warn">must total ${r.cards} (${rem>0?rem+' short':Math.abs(rem)+' over'})</span>`);
+      else if(!allT) tags.push(`<span class="tag info">enter tricks won by each</span>`);
+      else if(trOk && madeNow.some(pi=>gv[pi]==null)) tags.push(`<span class="tag warn">tap who gets each made contract's drink</span>`);
+      $('#fb').innerHTML = tags.join('');
+
+      const giveOk = madeNow.every(pi=> gv[pi]!=null);
+      $('#record').disabled = !(trOk && giveOk);
+    };
+
+    $$('#entry input.trk').forEach(inp=>{
+      inp.addEventListener('input', ()=>{ update(); focusAdvance($$('#entry input.trk'), inp, r.cards, '#record'); });
+      inp.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); focusAdvance($$('#entry input.trk'), inp, r.cards, '#record'); } });
+      inp.addEventListener('change', ()=>{ r.tricks = readTr(); Storage.setActive(mode,g); });
+    });
+
+    // Tap a row to assign that round's drink — clicking the trick input
+    // itself always just focuses/types as normal; tapping anywhere else
+    // on an eligible row (their name, badge, blank space) is the "pick".
+    panel.addEventListener('click', (e)=>{
+      const undo = e.target.closest('[data-undo]');
+      if(undo){
+        e.stopPropagation();
+        const row = undo.closest('[data-row]');
+        const pi = +row.dataset.row;
+        r.giveTo[pi] = null;
+        Storage.setActive(mode,g); update();
+        return;
+      }
+      if(e.target.closest('input')) return;
+      const row = e.target.closest('.entry.playphase.pickable[data-row]');
+      if(row){
+        const targetPi = +row.dataset.row;
+        const tr = readTr();
+        const { activeGiver } = computeGive(tr);
+        if(activeGiver==null || activeGiver===targetPi) return;
+        r.giveTo[activeGiver] = targetPi;
+        Storage.setActive(mode,g); update();
+      }
+    });
+
+    update();
+
+    $('#record').onclick = ()=>{
+      const tr = readTr();
+      if(tr.some(x=>x==null) || tr.reduce((a,x)=>a+(x||0),0)!==r.cards){
+        $('#fb').innerHTML = `<span class="tag warn">Tricks must total exactly ${r.cards}.</span>`; return;
+      }
+      const { madeNow, gv } = computeGive(tr);
+      if(madeNow.some(pi=> gv[pi]==null)){
+        $('#fb').innerHTML = `<span class="tag warn">Tap who gets each made contract's drink.</span>`; return;
+      }
+      r.tricks = tr; r.giveTo = gv; r.recorded = true; r.bidsLocked = true;
+      state.editing = null; finishIfDone(g,mode); Storage.setActive(mode,g); render();
+    };
+    $('#editbids').onclick = ()=>{ r.bidsLocked = false; Storage.setActive(mode,g); render(); };
   }
 }
 
-function finishIfDone(g){
+function finishIfDone(g, mode){
   if(currentRoundIndex(g)===-1){
     const ld = leaders(g);
     g.finishedAt = new Date().toISOString();
     g.winner = ld.winners.map(i=>g.players[i]).join(" & ");
-    Storage.saveGame(g);            // upsert to Hall of Fame
-    state.games.push(g);            // refresh cache (upsert-safe enough for view)
+    Storage.saveGame(mode, g);            // upsert to Hall of Fame
+    state.games[mode].push(g);            // refresh cache (upsert-safe enough for view)
   } else if(g.finishedAt){
     // a finished game was re-edited: recompute + re-save
-    const ld=leaders(g); g.winner=ld.winners.map(i=>g.players[i]).join(" & "); Storage.saveGame(g);
+    const ld=leaders(g); g.winner=ld.winners.map(i=>g.players[i]).join(" & "); Storage.saveGame(mode,g);
   }
 }
 
 /* ---------------- STATS / HALL OF FAME ---------------- */
-function computeStats(games, countFilter){
+// Pick the player who leads a metric, with a minimum-rounds guard for rates.
+function leaderOf(players, valFn, minRounds=0){
+  let best=null, bv=-Infinity;
+  players.forEach(p=>{ if(p.rounds<minRounds) return; const v=valFn(p); if(v>bv){ bv=v; best=p; } });
+  return best ? {name:best.name, val:bv} : null;
+}
+
+function viewStats(){
+  const sm = state.statMode || "whist";
+  const modeSeg = `<div class="seg">
+    <button class="btn sm ghost segbtn" data-sm="whist" aria-pressed="${sm==='whist'}">Whist</button>
+    <button class="btn sm ghost segbtn" data-sm="twist" aria-pressed="${sm==='twist'}">Twist &#127866;</button>
+  </div>`;
+  return sm==="twist" ? viewStatsTwist(modeSeg) : viewStatsWhist(modeSeg);
+}
+
+/* ---- Whist stats (rich: trumps, overbids, table-size splits) ---- */
+function computeStatsWhist(games, countFilter){
   let fin = games.filter(g=>g.finishedAt);
   const counts = [...new Set(fin.map(g=>g.players.length))].sort((a,b)=>a-b);
   if(countFilter && countFilter!=="all") fin = fin.filter(g=>g.players.length===+countFilter);
@@ -852,21 +1186,51 @@ function computeStats(games, countFilter){
     rounds:0, contracts:0, busts:0,
     tricksWon:0, tricksAvail:0, bidSum:0, cardSum:0,
     overbids:0, minRaises:0, trumpsPicked:0, trumpsMade:0,
-    nilBids:0, nilMade:0, bestHand:0
+    nilBids:0, nilMade:0, bestHand:0,
+    missMarginSum:0,                                  // sum of |bid-tricks| on busted hands -> avg miss margin
+    dealerRounds:0, dealerPts:0, nonDealerRounds:0, nonDealerPts:0, // does the hook punish the dealer?
+    trumpsBySuit:{S:0,H:0,D:0,C:0}, trumpsMadeBySuit:{S:0,H:0,D:0,C:0}, // favourite trump suit
+    finishSum:0, bestStreak:0                          // avg finishing position + longest win streak
   });
   let bigRound = {val:-1,name:null,cards:null};
+  // Fun-fact trackers (cross-game, computed in the same pass as the per-game loop below)
+  let closestGame = {margin:Infinity, champ:null, runner:null, champScore:0, runnerScore:0};
+  let blowout     = {margin:-1,       champ:null, runner:null, champScore:0, runnerScore:0};
+  let biggestComeback = {val:0, who:null, leader:null};
+  // Head-to-head ledger: h2h[a][b] = {w,l,d} from a's perspective vs b
+  const h2h = {};
+  const h2hRec = (a,b)=> (h2h[a]=h2h[a]||{})[b] = h2h[a][b] || {w:0,l:0,d:0};
 
   fin.forEach(g=>{
     const t = totals(g);
     const ld = leaders(g);
     const n = g.players.length;
+    const sorted = [...t].sort((a,b)=>b-a);
 
     g.players.forEach((nm,i)=>{
       const s = ensure(nm);
       s.games++; s.points += t[i];
       if(ld.winners.includes(i)) s.wins++;
       if(t[i] > s.bestGame) s.bestGame = t[i];
+      s.finishSum += 1 + t.filter(v=>v>t[i]).length;   // standard competition ranking, ties share a place
     });
+
+    // Closest game / biggest blowout — margin between 1st and 2nd place
+    if(n>=2){
+      const margin = sorted[0]-sorted[1];
+      const champs  = g.players.filter((_,i)=>t[i]===sorted[0]).join(" & ");
+      const runners = g.players.filter((_,i)=>t[i]===sorted[1]).join(" & ");
+      if(margin < closestGame.margin) closestGame = {margin, champ:champs, runner:runners, champScore:sorted[0], runnerScore:sorted[1]};
+      if(margin > blowout.margin)     blowout     = {margin, champ:champs, runner:runners, champScore:sorted[0], runnerScore:sorted[1]};
+    }
+
+    // Head-to-head — every pair, who finished above whom in this game
+    for(let i=0;i<n;i++) for(let j=i+1;j<n;j++){
+      const a=g.players[i], b=g.players[j];
+      if(t[i]>t[j]){ h2hRec(a,b).w++; h2hRec(b,a).l++; }
+      else if(t[i]<t[j]){ h2hRec(a,b).l++; h2hRec(b,a).w++; }
+      else { h2hRec(a,b).d++; h2hRec(b,a).d++; }
+    }
 
     g.rounds.forEach(r=>{
       if(!r.recorded) return;
@@ -881,9 +1245,18 @@ function computeStats(games, countFilter){
         const rs = roundScore(bid, tr, g.settings);
         if(rs > s.bestHand) s.bestHand = rs;
         if(rs > bigRound.val) bigRound = {val:rs, name:nm, cards:r.cards};
-        if(bid===tr) s.contracts++; else s.busts++;
+        if(bid===tr) s.contracts++; else { s.busts++; s.missMarginSum += Math.abs(bid-tr); }
         if(bid===0){ s.nilBids++; if(tr===0) s.nilMade++; }
-        if(i===hb){ s.trumpsPicked++; if(bid===tr) s.trumpsMade++; }
+        if(i===hb){
+          s.trumpsPicked++;
+          if(bid===tr) s.trumpsMade++;
+          if(r.trumps){
+            s.trumpsBySuit[r.trumps] = (s.trumpsBySuit[r.trumps]||0)+1;
+            if(bid===tr) s.trumpsMadeBySuit[r.trumps] = (s.trumpsMadeBySuit[r.trumps]||0)+1;
+          }
+        }
+        if(i===r.dealerIndex){ s.dealerRounds++; s.dealerPts += rs; }
+        else { s.nonDealerRounds++; s.nonDealerPts += rs; }
       });
       // Overbid pass: walking bid order, who took the lead from a prior bidder?
       let runMax = -1;
@@ -898,6 +1271,58 @@ function computeStats(games, countFilter){
         if(b > runMax) runMax = b;
       });
     });
+
+    // Biggest comeback — for the eventual winner(s), the worst deficit they
+    // faced (vs whoever was leading at that moment) at any point in the game.
+    {
+      const cum = Array(n).fill(0);
+      const maxDef = Array(n).fill(0);
+      const worstLeader = Array(n).fill(null);
+      g.rounds.forEach(r=>{
+        if(!r.recorded) return;
+        r.bids.forEach((_,i)=> cum[i] += roundScore(r.bids[i], r.tricks[i], g.settings));
+        const curMax = Math.max(...cum);
+        const leadIdx = cum.indexOf(curMax);
+        cum.forEach((v,i)=>{
+          const d = curMax - v;
+          if(d > maxDef[i]){ maxDef[i] = d; worstLeader[i] = g.players[leadIdx]; }
+        });
+      });
+      ld.winners.forEach(wi=>{
+        if(maxDef[wi] > biggestComeback.val) biggestComeback = {val:maxDef[wi], who:g.players[wi], leader:worstLeader[wi]};
+      });
+    }
+  });
+
+  // Longest win streak — needs chronological order, so a separate pass.
+  const chron = [...fin].sort((a,b)=> new Date(a.finishedAt) - new Date(b.finishedAt));
+  const curStreak = {};
+  chron.forEach(g=>{
+    const ld = leaders(g);
+    const winSet = new Set(ld.winners.map(i=>g.players[i]));
+    g.players.forEach(nm=>{
+      const s = ensure(nm);
+      if(winSet.has(nm)){ curStreak[nm] = (curStreak[nm]||0)+1; if(curStreak[nm] > s.bestStreak) s.bestStreak = curStreak[nm]; }
+      else curStreak[nm] = 0;
+    });
+  });
+
+  // Biggest rivalry — the most one-sided head-to-head record, min 3 games together.
+  let rivalry = null;
+  Object.keys(h2h).forEach(a=>{
+    Object.keys(h2h[a]).forEach(b=>{
+      if(a >= b) return; // each pair considered once
+      const rec = h2h[a][b];
+      const total = rec.w+rec.l+rec.d;
+      if(total < 3) return;
+      const aLeads = rec.w >= rec.l;
+      const w = aLeads?rec.w:rec.l, l = aLeads?rec.l:rec.w, d = rec.d;
+      const margin = w-l;
+      if(margin<=0) return;
+      if(!rivalry || margin>rivalry.margin || (margin===rivalry.margin && total>rivalry.total)){
+        rivalry = {leader: aLeads?a:b, trail: aLeads?b:a, w, l, d, total};
+      }
+    });
   });
 
   const players = Object.values(byName).sort((a,b)=>
@@ -905,67 +1330,120 @@ function computeStats(games, countFilter){
     (b.points/Math.max(1,b.games)) - (a.points/Math.max(1,a.games)) ||
     a.name.localeCompare(b.name));
   const totalRounds = fin.reduce((a,g)=>a+g.rounds.filter(r=>r.recorded).length,0);
-  return { players, counts, gamesPlayed:fin.length, totalRounds, bigRound, recent:fin.slice(-6).reverse() };
+  return { players, counts, gamesPlayed:fin.length, totalRounds, bigRound, recent:fin.slice(-6).reverse(),
+    closestGame: closestGame.champ ? closestGame : null,
+    blowout: (blowout.champ && blowout.margin>0) ? blowout : null,
+    comeback: biggestComeback.who ? biggestComeback : null,
+    rivalry
+  };
 }
 
-// Pick the player who leads a metric, with a minimum-rounds guard for rates.
-function leaderOf(players, valFn, minRounds=0){
-  let best=null, bv=-Infinity;
-  players.forEach(p=>{ if(p.rounds<minRounds) return; const v=valFn(p); if(v>bv){ bv=v; best=p; } });
-  return best ? {name:best.name, val:bv} : null;
-}
-
-function viewStats(){
+function viewStatsWhist(modeSeg){
   const cf = state.statFilter || "all";
-  const st = computeStats(state.games, cf);
+  const st = computeStatsWhist(state.games.whist, cf);
 
   // table-size filter (only shows splits that actually exist in the data)
-  const allCounts = computeStats(state.games, "all").counts;
+  const allCounts = computeStatsWhist(state.games.whist, "all").counts;
   const seg = `<div class="seg">
     <button class="btn sm ghost segbtn" data-cf="all" aria-pressed="${cf==='all'}">All tables</button>
     ${allCounts.map(c=>`<button class="btn sm ghost segbtn" data-cf="${c}" aria-pressed="${cf===String(c)}">${c}-player</button>`).join("")}
   </div>`;
 
   if(st.gamesPlayed===0){
-    return `<section class="panel"><h2>Hall of Fame</h2>${seg}
+    return `<section class="panel"><h2>Hall of Fame</h2>${modeSeg}${seg}
       <div class="empty">No games on the books${cf!=='all'?` for ${cf}-player tables`:''} yet.<br>Finish a game and your table's all-time record fills in here.</div>
     </section>`;
   }
 
   const pct = (a,b)=> b? Math.round(a/b*100) : 0;
+  const suitSym = {S:'&#9824;',H:'&#9829;',D:'&#9830;',C:'&#9827;'};
+  const favSuitOf = p=>{
+    let best=null, bv=0;
+    Object.keys(p.trumpsBySuit||{}).forEach(k=>{ const v=p.trumpsBySuit[k]; if(v>bv){ bv=v; best=k; } });
+    return best ? {suit:best, picks:bv, made:(p.trumpsMadeBySuit&&p.trumpsMadeBySuit[best])||0} : null;
+  };
+
+  // Fun-fact tiles — the stories behind the numbers
+  const funTiles = [];
+  if(st.closestGame) funTiles.push(`<div class="stat"><div class="big">${st.closestGame.margin}</div><div class="lbl">Closest game · ${esc(st.closestGame.champ)} ${st.closestGame.champScore}&ndash;${st.closestGame.runnerScore} ${esc(st.closestGame.runner)}</div></div>`);
+  if(st.blowout)     funTiles.push(`<div class="stat"><div class="big">${st.blowout.margin}</div><div class="lbl">Biggest blowout · ${esc(st.blowout.champ)} over ${esc(st.blowout.runner)}</div></div>`);
+  if(st.comeback)    funTiles.push(`<div class="stat"><div class="big">${st.comeback.val}</div><div class="lbl">Biggest comeback · ${esc(st.comeback.who)} ran down ${esc(st.comeback.leader)}</div></div>`);
+
   const stats = `<div class="stat-grid">
     <div class="stat"><div class="big">${st.gamesPlayed}</div><div class="lbl">Games played</div></div>
     <div class="stat"><div class="big">${st.totalRounds}</div><div class="lbl">Hands dealt</div></div>
     <div class="stat"><div class="big">${st.bigRound.val}</div><div class="lbl">Best hand · ${esc(st.bigRound.name||'')}${st.bigRound.cards?` (${st.bigRound.cards}c)`:''}</div></div>
+    ${funTiles.join("")}
   </div>`;
 
-  // Table awards — fun superlatives
-  const trumpHog = leaderOf(st.players, p=>p.trumpsPicked);
-  const overlord = leaderOf(st.players, p=>p.overbids);
-  const spite    = leaderOf(st.players, p=>p.minRaises);
-  const sharp    = leaderOf(st.players, p=>pct(p.contracts,p.rounds), 8);
-  const awardLi = (label, a)=> a && a.val>0 ? `<li><span>${label}</span><span class="pts">${esc(a.name)} · ${a.val}${label==='Sharpest shooter'?'%':''}</span></li>` : '';
-  const awards = `<ul class="standings" style="max-width:none">
-    ${awardLi('Trump hog', trumpHog)}
-    ${awardLi('Most overbids', overlord)}
-    ${awardLi('Spite raises (+1)', spite)}
-    ${awardLi('Sharpest shooter', sharp)}
-  </ul>`;
+  // Table awards — fun superlatives. Rate-based ones get a min-sample guard
+  // (8 rounds) so one lucky/unlucky early hand doesn't crown someone.
+  const MIN = 8;
+  const trumpHog    = leaderOf(st.players, p=>p.trumpsPicked);
+  const overlord    = leaderOf(st.players, p=>p.overbids);
+  const spite       = leaderOf(st.players, p=>p.minRaises);
+  const sharp       = leaderOf(st.players, p=>pct(p.contracts,p.rounds), MIN);
+  const bigTalker   = leaderOf(st.players, p=> p.rounds ? (p.bidSum-p.tricksWon)/p.rounds : -Infinity, MIN);
+  const sandbagger  = leaderOf(st.players, p=> p.rounds ? (p.tricksWon-p.bidSum)/p.rounds : -Infinity, MIN);
+  const bustProne   = leaderOf(st.players, p=> pct(p.busts,p.rounds), MIN);
+  const streakStar  = leaderOf(st.players, p=> p.bestStreak||0);
+
+  let dealerCurse = null;
+  st.players.forEach(p=>{
+    if(p.dealerRounds<4 || p.nonDealerRounds<4) return;
+    const dAvg=p.dealerPts/p.dealerRounds, ndAvg=p.nonDealerPts/p.nonDealerRounds;
+    const drop = ndAvg-dAvg;
+    if(drop>0 && (!dealerCurse || drop>dealerCurse.val)) dealerCurse = {name:p.name, val:drop};
+  });
+
+  let suitSpecialist = null;
+  st.players.forEach(p=>{
+    const f = favSuitOf(p);
+    if(!f || f.picks<3) return;
+    const rate = Math.round(f.made/f.picks*100);
+    if(!suitSpecialist || rate>suitSpecialist.val) suitSpecialist = {name:p.name, suit:f.suit, val:rate};
+  });
+
+  const A=[];
+  const add=(label, ok, html)=>{ if(ok) A.push(`<li><span>${label}</span><span class="pts">${html}</span></li>`); };
+  add('Trump hog',          trumpHog && trumpHog.val>0,          trumpHog && `${esc(trumpHog.name)} · ${trumpHog.val}`);
+  add('Most overbids',      overlord && overlord.val>0,          overlord && `${esc(overlord.name)} · ${overlord.val}`);
+  add('Spite raises (+1)',  spite && spite.val>0,                spite && `${esc(spite.name)} · ${spite.val}`);
+  add('Sharpest shooter',   sharp && sharp.val>0,                sharp && `${esc(sharp.name)} · ${sharp.val}%`);
+  add('Big talker',         bigTalker && bigTalker.val>0,        bigTalker && `${esc(bigTalker.name)} · +${bigTalker.val.toFixed(2)}/hand`);
+  add('Sandbagger',         sandbagger && sandbagger.val>0,      sandbagger && `${esc(sandbagger.name)} · +${sandbagger.val.toFixed(2)}/hand`);
+  add('Bust-prone',         bustProne && bustProne.val>0,         bustProne && `${esc(bustProne.name)} · ${bustProne.val}%`);
+  add("Dealer's curse",     !!dealerCurse,                       dealerCurse && `${esc(dealerCurse.name)} · &minus;${dealerCurse.val.toFixed(1)} pts dealing`);
+  add('Suit specialist',    !!suitSpecialist,                    suitSpecialist && `${esc(suitSpecialist.name)} · ${suitSym[suitSpecialist.suit]} ${suitSpecialist.val}%`);
+  add('Biggest rivalry',    !!st.rivalry,                        st.rivalry && `${esc(st.rivalry.leader)} leads ${esc(st.rivalry.trail)} ${st.rivalry.w}&ndash;${st.rivalry.l}${st.rivalry.d?` (${st.rivalry.d}d)`:''}`);
+  add('Longest win streak', streakStar && streakStar.val>1,      streakStar && `${esc(streakStar.name)} · ${streakStar.val} in a row`);
+  const awards = `<ul class="standings" style="max-width:none">${A.join("")}</ul>`;
 
   const hof = st.players.map((p,i)=>{
-    const winPct  = pct(p.wins, p.games);
-    const conPct  = pct(p.contracts, p.rounds);
-    const trkPct  = pct(p.tricksWon, p.tricksAvail);
-    const bpc     = p.cardSum ? (p.bidSum/p.cardSum).toFixed(2) : '0.00';
-    const avg     = (p.points/Math.max(1,p.games)).toFixed(0);
-    const trMake  = pct(p.trumpsMade, p.trumpsPicked);
+    const winPct    = pct(p.wins, p.games);
+    const conPct    = pct(p.contracts, p.rounds);
+    const trkPct    = pct(p.tricksWon, p.tricksAvail);
+    const bpc       = p.cardSum ? (p.bidSum/p.cardSum).toFixed(2) : '0.00';
+    const avg       = (p.points/Math.max(1,p.games)).toFixed(0);
+    const trMake    = pct(p.trumpsMade, p.trumpsPicked);
+    const avgFinish = p.games ? (p.finishSum/p.games).toFixed(1) : '–';
+    const bustPct   = pct(p.busts, p.rounds);
+    const missAvg   = p.busts ? (p.missMarginSum/p.busts).toFixed(1) : '0.0';
+    const diff      = p.rounds ? (p.bidSum-p.tricksWon)/p.rounds : 0;
+    const tendency  = Math.abs(diff)<0.05 ? 'bids true' : (diff>0 ? `overbids ${diff.toFixed(2)}/hand` : `sandbags ${Math.abs(diff).toFixed(2)}/hand`);
+    const dAvg      = p.dealerRounds ? (p.dealerPts/p.dealerRounds).toFixed(1) : '–';
+    const ndAvg     = p.nonDealerRounds ? (p.nonDealerPts/p.nonDealerRounds).toFixed(1) : '–';
+    const fav       = favSuitOf(p);
+    const favTxt    = fav ? `${suitSym[fav.suit]} fave (${fav.picks} picks, ${Math.round(fav.made/fav.picks*100)}% made)` : 'no clear favourite';
     return `<li>
       <span class="rk">${i+1}</span>
       <span>
         <span class="nm">${esc(p.name)}</span><br>
-        <span class="meta">${p.games} games · ${winPct}% win · avg ${avg} · best game ${p.bestGame}</span><br>
+        <span class="meta">${p.games} games · ${winPct}% win · avg ${avg} · best game ${p.bestGame} · streak ${p.bestStreak||0}</span><br>
         <span class="meta">${conPct}% contracts · ${trkPct}% tricks · ${bpc} bid/card</span><br>
-        <span class="meta">${p.overbids} overbids (${p.minRaises} spite) · trumps ${p.trumpsPicked} (${trMake}% made) · nil ${p.nilMade}/${p.nilBids}</span>
+        <span class="meta">${p.overbids} overbids (${p.minRaises} spite) · trumps ${p.trumpsPicked} (${trMake}% made) · nil ${p.nilMade}/${p.nilBids}</span><br>
+        <span class="meta">finish avg ${avgFinish} · bust ${bustPct}% (miss ${missAvg}) · ${tendency}</span><br>
+        <span class="meta">dealing ${dAvg} vs ${ndAvg} non-deal · trumps ${favTxt}</span>
       </span>
       <span class="w">${p.wins}</span>
       <span class="meta">wins</span>
@@ -981,7 +1459,118 @@ function viewStats(){
   return `
     <section class="panel"><h2>Hall of Fame</h2>
       <div class="sub">All-time record · ${cf==='all'?'every table':cf+'-player games'}.</div>
+      ${modeSeg}
       ${seg}
+      <div style="margin-top:14px">${stats}</div>
+      <h3 style="font-family:'Cinzel';font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--ash);margin:8px 0 6px">Table awards</h3>
+      ${awards}
+      <ul class="hof">${hof}</ul>
+    </section>
+    <section class="panel"><h2>Recent games</h2><ul class="hof">${recent}</ul></section>`;
+}
+
+/* ---- Twist stats (drinks, tracked separately) ---- */
+function computeStatsTwist(games){
+  const fin = games.filter(g=>g.finishedAt);
+  const byName = {};
+  const ensure = n => byName[n] || (byName[n]={
+    name:n, games:0, wins:0, points:0, bestGame:0,
+    rounds:0, contracts:0, best:0, drinksDown:0, drinksGiven:0
+  });
+  let bigRound = {val:-1,name:null};
+
+  fin.forEach(g=>{
+    const t = totals(g);
+    const ld = leaders(g);
+    const dr = drinkTotals(g);
+
+    g.players.forEach((nm,i)=>{
+      const s = ensure(nm);
+      s.games++; s.points += t[i]; s.drinksDown += dr[i];
+      if(ld.winners.includes(i)) s.wins++;
+      if(t[i] > s.bestGame) s.bestGame = t[i];
+    });
+
+    g.rounds.forEach(r=>{
+      if(!r.recorded) return;
+      g.players.forEach((nm,i)=>{
+        if(r.bids[i]==null || r.tricks[i]==null) return;
+        const s = ensure(nm);
+        s.rounds++;
+        const rs = roundScore(r.bids[i], r.tricks[i], g.settings);
+        if(rs > s.best) s.best = rs;
+        if(rs > bigRound.val) bigRound = {val:rs, name:nm};
+        if(r.bids[i]===r.tricks[i]) s.contracts++;
+      });
+      (r.giveTo||[]).forEach((target, giverIdx)=>{
+        if(target!=null && r.bids[giverIdx]===r.tricks[giverIdx]){
+          ensure(g.players[giverIdx]).drinksGiven += (g.settings.makeCount ?? 1);
+        }
+      });
+    });
+  });
+
+  const players = Object.values(byName).sort((a,b)=>
+    b.wins-a.wins ||
+    (b.points/Math.max(1,b.games)) - (a.points/Math.max(1,a.games)) ||
+    a.name.localeCompare(b.name));
+  const totalRounds = fin.reduce((a,g)=>a+g.rounds.filter(r=>r.recorded).length,0);
+  const totalDrinks = players.reduce((a,p)=>a+p.drinksDown,0);
+  return { players, gamesPlayed:fin.length, totalRounds, totalDrinks, bigRound, recent:fin.slice(-6).reverse() };
+}
+
+function viewStatsTwist(modeSeg){
+  const st = computeStatsTwist(state.games.twist);
+
+  if(st.gamesPlayed===0){
+    return `<section class="panel"><h2>Hall of Fame</h2>${modeSeg}
+      <div class="empty">No Twist games on the books yet.<br>Finish a game and the drink tally fills in here.</div>
+    </section>`;
+  }
+
+  const pct = (a,b)=> b? Math.round(a/b*100) : 0;
+  const stats = `<div class="stat-grid">
+    <div class="stat"><div class="big">${st.gamesPlayed}</div><div class="lbl">Games played</div></div>
+    <div class="stat"><div class="big">${st.totalRounds}</div><div class="lbl">Hands dealt</div></div>
+    <div class="stat"><div class="big">&#127866;${st.totalDrinks}</div><div class="lbl">Drinks poured</div></div>
+    <div class="stat"><div class="big">${st.bigRound.val}</div><div class="lbl">Best hand · ${esc(st.bigRound.name||'')}</div></div>
+  </div>`;
+
+  const heaviest = leaderOf(st.players, p=>p.drinksDown);
+  const generous = leaderOf(st.players, p=>p.drinksGiven);
+  const sharp    = leaderOf(st.players, p=>pct(p.contracts,p.rounds), 8);
+  const awardLi  = (label, a)=> a && a.val>0 ? `<li><span>${label}</span><span class="pts">${esc(a.name)} · ${a.val}${label==='Sharpest shooter'?'%':''}</span></li>` : '';
+  const awards = `<ul class="standings" style="max-width:none">
+    ${awardLi('Heaviest pour', heaviest)}
+    ${awardLi('Most generous', generous)}
+    ${awardLi('Sharpest shooter', sharp)}
+  </ul>`;
+
+  const hof = st.players.map((p,i)=>{
+    const avg = (p.points/Math.max(1,p.games)).toFixed(0);
+    const acc = p.rounds? Math.round(p.contracts/p.rounds*100):0;
+    return `<li>
+      <span class="rk">${i+1}</span>
+      <span>
+        <span class="nm">${esc(p.name)}</span><br>
+        <span class="meta">${p.games} games · avg ${avg} · ${acc}% contracts · best game ${p.bestGame}</span><br>
+        <span class="meta">&#127866; ${p.drinksDown} downed · ${p.drinksGiven} handed out</span>
+      </span>
+      <span class="w">${p.wins}</span>
+      <span class="meta">wins</span>
+    </li>`;
+  }).join("");
+
+  const recent = st.recent.map(g=>{
+    const d = new Date(g.finishedAt); const t=totals(g);
+    const champ = esc(g.winner||''); const top=Math.max(...t);
+    return `<li><span class="rk">&#9824;</span><span><span class="nm">${champ}</span><br><span class="meta">${g.players.length}p · ${esc(g.players.join(', '))}</span></span><span class="w">${top}</span><span class="meta">${d.toLocaleDateString()}</span></li>`;
+  }).join("");
+
+  return `
+    <section class="panel"><h2>Hall of Fame</h2>
+      <div class="sub">All-time record · Contract Twist (tracked separately from Whist).</div>
+      ${modeSeg}
       <div style="margin-top:14px">${stats}</div>
       <h3 style="font-family:'Cinzel';font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--ash);margin:8px 0 6px">Table awards</h3>
       ${awards}
@@ -992,6 +1581,7 @@ function viewStats(){
 
 function wireStats(){
   $$('#app [data-cf]').forEach(b=> b.onclick = ()=>{ state.statFilter = b.dataset.cf; render(); });
+  $$('#app [data-sm]').forEach(b=> b.onclick = ()=>{ state.statMode = b.dataset.sm; render(); });
 }
 
 boot();
