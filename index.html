@@ -1270,7 +1270,7 @@ function viewStats(){
   const sm = state.statMode || "whist";
   const modeSeg = `<div class="seg">
     <button class="btn sm ghost segbtn" data-sm="whist" aria-pressed="${sm==='whist'}">Whist</button>
-    <button class="btn sm ghost segbtn" data-sm="twist" aria-pressed="${sm==='twist'}">Twist &#127866;</button>
+    <button class="btn sm ghost segbtn" data-sm="twist" aria-pressed="${sm==='twist'}">Twist;</button>
   </div>`;
   return sm==="twist" ? viewStatsTwist(modeSeg) : viewStatsWhist(modeSeg);
 }
