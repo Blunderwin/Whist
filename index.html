@@ -260,14 +260,16 @@
    1. CONFIG + STORAGE ADAPTER  (the future-proof seam)
    ---------------------------------------------------------------
    Everything the app reads/writes goes through `Storage`, an async
-   adapter. Today it's localStorage. To move all-time scores & stats
-   to a (nano) Supabase instance, flip CONFIG.backend to 'supabase',
-   fill in the creds, and implement the SupabaseAdapter methods —
-   the rest of the app does not change.
+   adapter. Today it's pointed at Supabase. To go back to pure
+   on-device storage, flip CONFIG.backend to 'local' — the rest of
+   the app does not change.
 */
 const CONFIG = {
-  backend: "local",                 // "local" | "supabase"
-  supabase: { url: "", anonKey: "" } // fill these to go online
+  backend: "supabase",                // "local" | "supabase"
+  supabase: {
+    url: "https://iyojwrkfqcxpwdoigmuz.supabase.co",
+    anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5b2p3cmtmcWN4cHdkb2lnbXV6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2Mzc1NTQsImV4cCI6MjA5ODIxMzU1NH0.rtduCfAYXYc2GtUZIE2TXKYKYzSp429y-IakQ5t43YE"
+  }
 };
 
 /* ---- Local adapter: localStorage with in-memory fallback ---- */
@@ -284,14 +286,6 @@ const LocalAdapter = {
   async getGames(){ const r = LS.get("cw_games"); const m = r ? JSON.parse(r) : {}; return Object.values(m); },
   async saveGame(g){ const r = LS.get("cw_games"); const m = r ? JSON.parse(r) : {}; m[g.id] = g; LS.set("cw_games", JSON.stringify(m)); },
   label(){ return "Local table"; }
-};
-
-const CONFIG = {
-  backend: "supabase",
-  supabase: {
-    url: "https://iyojwrkfqcxpwdoigmuz.supabase.co",
-    anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5b2p3cmtmcWN4cHdkb2lnbXV6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2Mzc1NTQsImV4cCI6MjA5ODIxMzU1NH0.rtduCfAYXYc2GtUZIE2TXKYKYzSp429y-IakQ5t43YE"
-  }
 };
 
 /* ---- Supabase adapter (dependency-free REST) ----
