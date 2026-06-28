@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Contract Whist · The Scorekeeper</title>
+<meta name="description" content="A pub scorekeeper for Contract Whist. Bids in, pints poured, last hand decides it." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Spectral:ital,wght@0,400;0,500;0,600;1,400&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<style>
+  /* ============================================================
+     THEME — Stout & Cards
+     Palette (named hex):
+       --stout  #14100c  body of the pint / background
+       --mid    #241b13  panel brown
+       --head   #efe2c4  the cream head / paper / primary ink
+       --gold   #c79a3b  harp gold / contract made
+       --ruby   #a32d27  heart & diamond red / warnings
+       --ash    #93876c  muted ink
+     Type:
+       Cinzel     — engraved display caps (titles, round)
+       Spectral   — body serif (menu / scorepad feel)
+       Space Mono — figures, so scores align like a till receipt
+     ============================================================ */
+  :root{
+    --stout:#14100c; --mid:#241b13; --panel:#2c2118;
+    --head:#efe2c4; --paper:#f3ead2; --gold:#c79a3b; --gold-dim:#8d6f2c;
+    --ruby:#a32d27; --ash:#93876c; --line:rgba(239,226,196,.16);
+    --ok:#7a9a4e;
+    --shadow:0 18px 40px -22px rgba(0,0,0,.85);
+    --r:14px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:
+      radial-gradient(120% 80% at 50% -10%, #2a2016 0%, var(--stout) 55%) fixed,
+      var(--stout);
+    color:var(--head);
+    font-family:"Spectral",Georgia,serif;
+    font-size:17px; line-height:1.5;
+    -webkit-text-size-adjust:100%;
+    padding-bottom:env(safe-area-inset-bottom);
+  }
+  h1,h2,h3{font-family:"Cinzel",serif;font-weight:600;letter-spacing:.04em;margin:0}
+  .mono{font-family:"Space Mono",ui-monospace,monospace}
+  button{font-family:inherit;cursor:pointer}
+  input{font-family:inherit}
+  a{color:var(--gold)}
+
+  .wrap{max-width:760px;margin:0 auto;padding:18px 16px 64px}
+
+  /* ---------- Header ---------- */
+  header.top{text-align:center;padding:14px 0 10px}
+  .suits{color:var(--gold-dim);letter-spacing:.5em;font-size:14px;margin-bottom:8px}
+  .suits .r{color:var(--ruby)}
+  .eyebrow{font-family:"Cinzel";font-size:11px;letter-spacing:.42em;color:var(--ash);text-transform:uppercase}
+  header.top h1{font-size:clamp(30px,8vw,44px);color:var(--head);margin:4px 0 6px;text-shadow:0 1px 0 #000}
+  .tagline{color:var(--ash);font-style:italic;font-size:15px}
+  .rule{height:1px;background:linear-gradient(90deg,transparent,var(--gold-dim),transparent);margin:14px 0}
+
+  /* ---------- Tabs ---------- */
+  nav.tabs{display:flex;gap:6px;justify-content:center;margin:6px 0 18px}
+  nav.tabs button{
+    background:transparent;border:1px solid var(--line);color:var(--ash);
+    padding:8px 16px;border-radius:999px;font-size:13px;letter-spacing:.12em;
+    text-transform:uppercase;font-family:"Cinzel";transition:.18s;
+  }
+  nav.tabs button[aria-selected="true"]{background:var(--gold);color:#241b13;border-color:var(--gold);font-weight:600}
+
+  /* ---------- Panels ---------- */
+  .panel{background:linear-gradient(180deg,var(--mid),var(--panel));border:1px solid var(--line);
+    border-radius:var(--r);padding:18px;box-shadow:var(--shadow);margin-bottom:16px}
+  .panel h2{font-size:17px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold)}
+  .panel .sub{color:var(--ash);font-size:14px;margin-top:2px}
+
+  label.fld{display:block;margin:14px 0 6px;font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--ash)}
+  input[type=text],input[type=number],select{
+    width:100%;background:#1b140d;border:1px solid var(--line);color:var(--head);
+    border-radius:10px;padding:12px 14px;font-size:17px;outline:none;
+  }
+  input:focus,select:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(199,154,59,.18)}
+
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;
+    background:var(--gold);color:#241b13;border:none;border-radius:11px;
+    padding:14px 20px;font-size:15px;font-weight:700;letter-spacing:.06em;
+    font-family:"Cinzel";text-transform:uppercase;width:100%;transition:.15s}
+  .btn:hover{filter:brightness(1.06)}
+  .btn:active{transform:translateY(1px)}
+  .btn[disabled]{opacity:.4;cursor:not-allowed}
+  .btn.ghost{background:transparent;color:var(--head);border:1px solid var(--line)}
+  .btn.ruby{background:var(--ruby);color:var(--head)}
+  .btn.sm{padding:9px 14px;font-size:12px;width:auto}
+  .row{display:flex;gap:10px;flex-wrap:wrap}
+  .row > *{flex:1}
+
+  /* ---------- Player setup chips ---------- */
+  .player-edit{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+  .player-edit .num{font-family:"Space Mono";color:var(--gold);width:22px;text-align:center}
+  .player-edit button{flex:0 0 auto;background:transparent;border:1px solid var(--line);
+    color:var(--ash);border-radius:10px;width:44px;height:46px;font-size:18px}
+
+  /* ---------- The Shelf: pint standings (signature element) ---------- */
+  .shelf{display:flex;gap:14px;overflow-x:auto;padding:6px 2px 16px;
+    border-bottom:2px solid var(--gold-dim);margin-bottom:6px;-webkit-overflow-scrolling:touch}
+  .pint{flex:0 0 auto;width:74px;text-align:center}
+  .glass{position:relative;height:120px;width:62px;margin:0 auto 8px;
+    border:2px solid var(--line);border-top:none;
+    border-radius:6px 6px 16px 16px / 6px 6px 26px 26px;
+    background:rgba(0,0,0,.25);overflow:hidden}
+  .glass::before{content:"";position:absolute;inset:0;border-radius:inherit;
+    background:linear-gradient(90deg,rgba(255,255,255,.10),transparent 30%,transparent 70%,rgba(255,255,255,.06));pointer-events:none;z-index:3}
+  .fill{position:absolute;left:0;right:0;bottom:0;
+    background:linear-gradient(180deg,#3a2a16,#0d0805);transition:height .7s cubic-bezier(.2,.8,.2,1)}
+  .foam{position:absolute;left:0;right:0;top:-7px;height:9px;border-radius:50%;
+    background:var(--head);box-shadow:0 0 6px rgba(239,226,196,.5)}
+  .pint .name{font-size:12px;color:var(--head);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
+  .pint .score{font-family:"Space Mono";font-size:18px;color:var(--gold)}
+  .pint.lead .glass{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold),0 0 16px -4px var(--gold)}
+  .crown{color:var(--gold);font-size:12px;height:14px;line-height:14px}
+
+  /* ---------- Round entry ---------- */
+  .round-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap}
+  .round-head .rno{font-family:"Cinzel";font-size:22px;color:var(--head)}
+  .round-head .cards{font-family:"Space Mono";color:var(--gold);font-size:15px}
+  .deal-note{font-size:13px;color:var(--ash);margin:6px 0 14px}
+  .deal-note b{color:var(--head);font-weight:600}
+
+  .entry{display:grid;grid-template-columns:1fr 64px 64px;gap:8px;align-items:center;margin-bottom:8px}
+  .entry.bidphase{grid-template-columns:1fr 76px}
+  .entry.playphase{grid-template-columns:1fr 54px 64px}
+  .lockchip{font-family:"Space Mono";font-size:17px;text-align:center;color:var(--gold);
+    background:rgba(199,154,59,.12);border:1px solid var(--line);border-radius:9px;padding:11px 0}
+  .hint{font-family:"Space Mono";font-size:11px;color:#e7a39d;flex:0 0 auto}
+  .phasetag{font-family:"Cinzel";font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--gold)}
+  .entry.head{margin-bottom:6px}
+  .entry.head span{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ash);text-align:center}
+  .entry.head .pl{text-align:left}
+  .entry .pl{display:flex;align-items:center;gap:8px;min-width:0}
+  .entry .pl .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .badge{font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;padding:2px 6px;border-radius:6px;flex:0 0 auto}
+  .badge.deal{background:var(--ruby);color:var(--head)}
+  .badge.first{background:var(--gold);color:#241b13}
+  .entry input{padding:11px 6px;text-align:center;font-family:"Space Mono";font-size:18px}
+  .entry input.bad{border-color:var(--ruby);box-shadow:0 0 0 3px rgba(163,45,39,.22)}
+  .entry input.made{border-color:var(--gold)}
+
+  /* ---------- Trumps picker ---------- */
+  .trumps{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:12px 0 2px}
+  .trumps .lab{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--ash)}
+  .trumps .lab b{color:var(--head);font-weight:600;text-transform:none;letter-spacing:0}
+  .suitbtn{flex:0 0 auto;width:46px;height:46px;border-radius:11px;border:1px solid var(--line);
+    background:#1b140d;color:var(--head);font-size:22px;line-height:1;display:inline-flex;align-items:center;justify-content:center;transition:.15s}
+  .suitbtn[data-suit="H"],.suitbtn[data-suit="D"]{color:var(--ruby)}
+  .suitbtn[aria-pressed="true"]{border-color:var(--gold);box-shadow:0 0 0 2px rgba(199,154,59,.4);background:rgba(199,154,59,.12)}
+
+  .feedback{margin:12px 0;font-size:14px;min-height:22px}
+  .feedback .tag{display:inline-block;padding:3px 9px;border-radius:8px;margin-right:8px;font-family:"Space Mono";font-size:13px}
+  .tag.warn{background:rgba(163,45,39,.18);color:#e7a39d;border:1px solid rgba(163,45,39,.4)}
+  .tag.good{background:rgba(122,154,78,.16);color:#b9cf8f;border:1px solid rgba(122,154,78,.4)}
+  .tag.info{background:rgba(199,154,59,.14);color:var(--gold);border:1px solid rgba(199,154,59,.35)}
+
+  /* ---------- Scorepad (paper) ---------- */
+  .pad{background:var(--paper);color:#2a2016;border-radius:var(--r);padding:14px;box-shadow:var(--shadow);overflow-x:auto}
+  .pad h3{font-family:"Cinzel";font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:#6b4f1d;margin-bottom:10px}
+  table{border-collapse:collapse;width:100%;font-size:14px}
+  .pad th,.pad td{padding:7px 8px;text-align:center;border-bottom:1px solid rgba(42,32,22,.14)}
+  .pad th{font-family:"Cinzel";font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#6b4f1d;font-weight:600}
+  .pad td.rh{text-align:left;font-family:"Space Mono";color:#7a5b22;white-space:nowrap}
+  .pad td.sc{font-family:"Space Mono"}
+  .pad td .made{color:var(--gold-dim);font-weight:700}
+  .pad tr.editable{cursor:pointer}
+  .pad tr.editable:hover td{background:rgba(199,154,59,.14)}
+  .pad tfoot td{font-family:"Space Mono";font-weight:700;font-size:15px;border-top:2px solid #2a2016;border-bottom:none;color:#241b13}
+  .pad .editing{background:rgba(199,154,59,.22)}
+  .pad .tap{font-size:11px;color:#8a6a2a;font-style:italic;margin-top:8px}
+
+  /* ---------- Winner ---------- */
+  .winner{text-align:center;padding:8px 0 4px}
+  .winner .cup{font-size:40px}
+  .winner h2{font-size:26px;color:var(--gold);margin:6px 0}
+  .standings{list-style:none;padding:0;margin:14px 0;max-width:380px;margin-inline:auto}
+  .standings li{display:flex;justify-content:space-between;padding:9px 14px;border:1px solid var(--line);
+    border-radius:10px;margin-bottom:7px;font-size:15px}
+  .standings li .pos{color:var(--ash);font-family:"Space Mono";margin-right:10px}
+  .standings li.win{border-color:var(--gold);background:rgba(199,154,59,.1)}
+  .standings li .pts{font-family:"Space Mono";color:var(--gold)}
+
+  /* ---------- Stats ---------- */
+  .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:8px}
+  .stat{background:var(--mid);border:1px solid var(--line);border-radius:12px;padding:14px;text-align:center}
+  .stat .big{font-family:"Space Mono";font-size:26px;color:var(--gold)}
+  .stat .lbl{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ash);margin-top:4px}
+  .hof li{display:grid;grid-template-columns:24px 1fr auto auto;gap:10px;align-items:center;
+    list-style:none;padding:10px 6px;border-bottom:1px solid var(--line)}
+  .hof{padding:0;margin:0}
+  .hof .rk{font-family:"Space Mono";color:var(--gold)}
+  .hof .nm{font-weight:600}
+  .hof .meta{font-size:12px;color:var(--ash)}
+  .hof .w{font-family:"Space Mono";color:var(--head)}
+  .empty{color:var(--ash);text-align:center;font-style:italic;padding:24px 0}
+
+  .seg{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 4px}
+  .seg .segbtn{flex:0 0 auto}
+  .seg .segbtn[aria-pressed="true"]{background:var(--gold);color:#241b13;border-color:var(--gold);font-weight:700}
+
+  details.rules{margin-top:8px;border:1px solid var(--line);border-radius:12px;padding:0 14px;background:var(--mid)}
+  details.rules summary{cursor:pointer;padding:14px 0;font-family:"Cinzel";font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold)}
+  details.rules div{padding-bottom:14px;font-size:14px;color:var(--head)}
+  details.rules b{color:var(--gold)}
+  details.rules .src{color:var(--ash);font-style:italic}
+
+  .foot{text-align:center;color:var(--ash);font-size:12px;margin-top:24px}
+  .pill{display:inline-block;font-size:11px;border:1px solid var(--line);border-radius:999px;padding:3px 10px;color:var(--ash)}
+
+  @media (max-width:420px){ .entry{grid-template-columns:1fr 56px 56px} .pint{width:66px} }
+  @media (prefers-reduced-motion:reduce){ *{transition:none!important} .fill{transition:none} }
+  :focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="suits"><span class="r">&hearts;</span> &spades; <span class="r">&diams;</span> &clubs;</div>
+    <div class="eyebrow">The Scorekeeper</div>
+    <h1>Contract Whist</h1>
+    <div class="tagline">Bids in. Pints poured. The last hand decides it.</div>
+  </header>
+
+  <nav class="tabs" id="tabs">
+    <button data-view="game" aria-selected="true">Game</button>
+    <button data-view="stats">Hall of Fame</button>
+  </nav>
+
+  <main id="app"></main>
+
+  <div class="foot">
+    <span class="pill" id="storeBadge">Local table</span>
+    &nbsp; A scorepad, not a dealer. Pour responsibly.
+  </div>
+</div>
+
+<script>
+/* ================================================================
+   CONTRACT WHIST — SCOREKEEPER
+   Single-file, host-anywhere. No build step, no framework.
+
+   HOUSE RULES (as configured):
+   • Rounds run inverse to cards: start at 7 cards → 7 rounds → down to 1.
+   • Left of the dealer bids first; the dealer bids last.
+   • Hook rule: the dealer may not make the bids total equal the tricks
+     available (someone must be left over- or under-bid).
+   • Last round (1 card): the hook is relaxed (bids may run up to one off).
+   • Scoring: made your contract = 10 + tricks won. Missed it = tricks won.
+   All of the above are toggles in Settings, so bend them to your table.
+   ================================================================ */
+
+/* ---------------------------------------------------------------
+   1. CONFIG + STORAGE ADAPTER  (the future-proof seam)
+   ---------------------------------------------------------------
+   Everything the app reads/writes goes through `Storage`, an async
+   adapter. Today it's localStorage. To move all-time scores & stats
+   to a (nano) Supabase instance, flip CONFIG.backend to 'supabase',
+   fill in the creds, and implement the SupabaseAdapter methods —
+   the rest of the app does not change.
+*/
+const CONFIG = {
+  backend: "local",                 // "local" | "supabase"
+  supabase: { url: "", anonKey: "" } // fill these to go online
+};
+
+/* ---- Local adapter: localStorage with in-memory fallback ---- */
+const mem = new Map();
+const LS = {
+  get(k){ try { return localStorage.getItem(k); } catch { return mem.get(k) ?? null; } },
+  set(k,v){ try { localStorage.setItem(k,v); } catch { mem.set(k,v); } },
+  del(k){ try { localStorage.removeItem(k); } catch { mem.delete(k); } }
+};
+const LocalAdapter = {
+  async getActive(){ const r = LS.get("cw_active"); return r ? JSON.parse(r) : null; },
+  async setActive(g){ LS.set("cw_active", JSON.stringify(g)); },
+  async clearActive(){ LS.del("cw_active"); },
+  async getGames(){ const r = LS.get("cw_games"); const m = r ? JSON.parse(r) : {}; return Object.values(m); },
+  async saveGame(g){ const r = LS.get("cw_games"); const m = r ? JSON.parse(r) : {}; m[g.id] = g; LS.set("cw_games", JSON.stringify(m)); },
+  label(){ return "Local table"; }
+};
+
+const CONFIG = {
+  backend: "supabase",
+  supabase: {
+    url: "https://iyojwrkfqcxpwdoigmuz.supabase.co",
+    anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5b2p3cmtmcWN4cHdkb2lnbXV6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2Mzc1NTQsImV4cCI6MjA5ODIxMzU1NH0.rtduCfAYXYc2GtUZIE2TXKYKYzSp429y-IakQ5t43YE"
+  }
+};
+
+/* ---- Supabase adapter (dependency-free REST) ----
+   To go online: set CONFIG.backend = "supabase" and fill CONFIG.supabase
+   with your project URL + anon key, then run this in the Supabase SQL editor:
+
+      create table cw_games (
+        id           uuid primary key,
+        created_at   timestamptz not null default now(),
+        finished_at  timestamptz,
+        players      jsonb not null,   -- ["Aoife","Liam",...]  (index = player slot)
+        settings     jsonb not null,
+        start_dealer int  not null,
+        rounds       jsonb not null,   -- [{cards,dealerIndex,bids[],tricks[],trumps,recorded}]
+        winner       text
+      );
+      alter table cw_games enable row level security;
+      -- Casual pub table: let the anon key read + write finished games.
+      create policy "anon read"   on cw_games for select using (true);
+      create policy "anon write"  on cw_games for insert with check (true);
+      create policy "anon update" on cw_games for update using (true) with check (true);
+
+   Everything else (all-time stats, per-game-type splits) is computed
+   client-side from the stored games, so the schema stays this simple.
+*/
+const SupabaseAdapter = {
+  _h(){
+    const k = CONFIG.supabase.anonKey;
+    return { apikey:k, Authorization:`Bearer ${k}`, "Content-Type":"application/json" };
+  },
+  _url(path){ return CONFIG.supabase.url.replace(/\/$/,"") + "/rest/v1/" + path; },
+  // The in-progress game stays on the device (fast + works offline).
+  async getActive(){ return LocalAdapter.getActive(); },
+  async setActive(g){ return LocalAdapter.setActive(g); },
+  async clearActive(){ return LocalAdapter.clearActive(); },
+  async getGames(){
+    try{
+      const res = await fetch(this._url("cw_games?select=*&finished_at=not.is.null&order=finished_at.asc"), { headers:this._h() });
+      if(!res.ok) throw new Error("HTTP "+res.status);
+      const games = (await res.json()).map(rowToGame);
+      try{ const m={}; games.forEach(g=>m[g.id]=g); LS.set("cw_games", JSON.stringify(m)); }catch{} // mirror for offline
+      return games;
+    }catch(e){ console.warn("Supabase getGames failed — using local cache:", e); return LocalAdapter.getGames(); }
+  },
+  async saveGame(g){
+    LocalAdapter.saveGame(g); // local first, always — never lose a result
+    try{
+      const res = await fetch(this._url("cw_games?on_conflict=id"), {
+        method:"POST",
+        headers:{ ...this._h(), Prefer:"resolution=merge-duplicates,return=minimal" },
+        body: JSON.stringify(gameToRow(g))
+      });
+      if(!res.ok) console.warn("Supabase saveGame HTTP", res.status, await res.text());
+    }catch(e){ console.warn("Supabase saveGame failed (kept locally):", e); }
+  },
+  label(){ return "Supabase · online"; }
+};
+function gameToRow(g){ return { id:g.id, created_at:g.createdAt, finished_at:g.finishedAt,
+  players:g.players, settings:g.settings, start_dealer:g.startDealer, rounds:g.rounds, winner:g.winner||null }; }
+function rowToGame(r){ return { id:r.id, createdAt:r.created_at, finishedAt:r.finished_at,
+  players:r.players, settings:r.settings, startDealer:r.start_dealer, rounds:r.rounds, winner:r.winner }; }
+
+const Storage = CONFIG.backend === "supabase" ? SupabaseAdapter : LocalAdapter;
+
+/* ---------------------------------------------------------------
+   2. UTILITIES
+   --------------------------------------------------------------- */
+const $ = (s,r=document)=>r.querySelector(s);
+const $$ = (s,r=document)=>[...r.querySelectorAll(s)];
+const uid = ()=> (crypto?.randomUUID?.() || ("g"+Date.now()+Math.random().toString(16).slice(2)));
+const esc = s => String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const clampInt = (v,lo,hi)=>{ v=parseInt(v,10); if(isNaN(v))return null; return Math.max(lo,Math.min(hi,v)); };
+
+// Auto-advance focus to the next entry field once the current value is
+// unambiguous (no further digit could keep it <= max). Falls through to the
+// action button on the last field so Enter/tap submits.
+function focusAdvance(inputs, current, max, actionSel){
+  const v = current.value;
+  if(v==="") return;
+  const n = parseInt(v,10);
+  if(isNaN(n)) return;
+  const complete = (n===0) || (n*10 > max);   // e.g. max 7 → any digit done; max 13 → "1" waits for a 2nd digit
+  if(!complete) return;
+  const i = inputs.indexOf(current);
+  if(i>=0 && i < inputs.length-1){
+    const nx = inputs[i+1]; nx.focus(); nx.select && nx.select();
+  } else {
+    const btn = actionSel && $(actionSel);
+    if(btn && !btn.disabled) btn.focus();
+  }
+}
+
+const DEFAULTS = { startCards:7, bonus:10, addTricks:true, failTricks:true, hook:true, relaxLast:true };
+// Shown as greyed placeholder text in the setup fields (NOT pre-filled values),
+// and used as the fallback name if a field is left blank.
+const EXAMPLE_NAMES = ["Aoife","Liam","Niamh","Cillian","Saoirse","Cormac","Maeve","Declan"];
+const SUITS = [["S","\u2660","Spades"],["H","\u2665","Hearts"],["D","\u2666","Diamonds"],["C","\u2663","Clubs"]];
+
+/* ---------------------------------------------------------------
+   3. GAME LOGIC
+   --------------------------------------------------------------- */
+function newGame(players, startDealer, settings){
+  const n = players.length;
+  const rounds = [];
+  for(let c = settings.startCards; c >= 1; c--){
+    const r = settings.startCards - c;             // 0-based round index
+    rounds.push({
+      cards:c,
+      dealerIndex:(startDealer + r) % n,
+      bids:Array(n).fill(null),
+      tricks:Array(n).fill(null),
+      trumps:null,            // suit code chosen by the highest bidder: "S"|"H"|"D"|"C"
+      bidsLocked:false,
+      recorded:false
+    });
+  }
+  return { id:uid(), createdAt:new Date().toISOString(), finishedAt:null,
+    players:players.slice(), settings:{...settings}, startDealer, rounds, winner:null };
+}
+// Bid order for a round: left of dealer first … dealer last.
+function bidOrder(round, n){
+  const o=[]; for(let i=1;i<=n;i++) o.push((round.dealerIndex + i) % n); return o;
+}
+// Highest bidder picks trumps. Ties break to whoever reached that bid first in bid order.
+function highestBidder(g, r){
+  const order = bidOrder(r, g.players.length);
+  let best=-Infinity, who=null;
+  for(const pi of order){ const b=r.bids[pi]; if(b!=null && b>best){ best=b; who=pi; } }
+  return who;
+}
+function roundScore(bid, tricks, st){
+  if(bid==null || tricks==null) return 0;
+  if(bid === tricks) return st.bonus + (st.addTricks ? tricks : 0);
+  return st.failTricks ? tricks : 0;
+}
+function totals(g){
+  const t = Array(g.players.length).fill(0);
+  g.rounds.forEach(r=>{ if(r.recorded) r.bids.forEach((_,i)=> t[i]+=roundScore(r.bids[i], r.tricks[i], g.settings)); });
+  return t;
+}
+function currentRoundIndex(g){ return g.rounds.findIndex(r=>!r.recorded); }
+function leaders(g){
+  const t = totals(g); const max = Math.max(...t);
+  return { totals:t, max, winners:t.map((v,i)=>v===max?i:-1).filter(i=>i>=0) };
+}
+
+/* ---------------------------------------------------------------
+   4. APP STATE + RENDER
+   --------------------------------------------------------------- */
+const state = { view:"game", active:null, games:[], editing:null, setupPlayers:["","","",""], statFilter:"all" };
+
+async function boot(){
+  $("#storeBadge").textContent = Storage.label();
+  state.active = await Storage.getActive();
+  state.games  = await Storage.getGames();
+  wireTabs();
+  render();
+}
+function wireTabs(){
+  $$("#tabs button").forEach(b=> b.onclick = ()=>{ state.view=b.dataset.view; state.editing=null; render(); });
+}
+function setTab(){ $$("#tabs button").forEach(b=> b.setAttribute("aria-selected", b.dataset.view===state.view)); }
+
+function render(){
+  setTab();
+  const app = $("#app");
+  if(state.view==="stats"){ app.innerHTML = viewStats(); wireStats(); return; }
+  if(!state.active){ app.innerHTML = viewSetup(); wireSetup(); return; }
+  app.innerHTML = viewGame();
+  wireGame();
+}
+
+/* ---------------- SETUP ---------------- */
+function viewSetup(){
+  const p = state.setupPlayers;
+  const max = (n)=> Math.min(13, Math.floor(52 / Math.max(2,n)));
+  const rows = p.map((nm,i)=>`
+    <div class="player-edit">
+      <span class="num">${i+1}</span>
+      <input type="text" data-pi="${i}" value="${esc(nm)}" placeholder="${esc(EXAMPLE_NAMES[i]||("Player "+(i+1)))}" maxlength="16" autocomplete="off"/>
+      <button data-rm="${i}" ${p.length<=2?"disabled":""} aria-label="Remove">&times;</button>
+    </div>`).join("");
+  const startMax = max(p.length);
+  return `
+  <section class="panel">
+    <h2>New Game</h2>
+    <div class="sub">Add the table. 2–8 players.</div>
+    <div style="margin-top:14px">${rows}</div>
+    <button class="btn ghost sm" id="addP" ${p.length>=8?"disabled":""} style="margin-top:4px">+ Add player</button>
+
+    <label class="fld">First dealer</label>
+    <select id="dealer">${p.map((nm,i)=>`<option value="${i}">${esc(nm||EXAMPLE_NAMES[i]||("Player "+(i+1)))}</option>`).join("")}</select>
+
+    <label class="fld">Starting cards (= number of rounds)</label>
+    <input type="number" id="startCards" value="${Math.min(DEFAULTS.startCards,startMax)}" min="1" max="${startMax}"/>
+    <div class="sub" id="roundsHint"></div>
+
+    <div style="margin-top:18px">
+      <button class="btn" id="startGame">Deal the first hand</button>
+    </div>
+
+    <details class="rules">
+      <summary>Settings &amp; house rules</summary>
+      <div>
+        <label class="fld" style="margin-top:0">Contract bonus</label>
+        <input type="number" id="s_bonus" value="${DEFAULTS.bonus}" min="0" max="50"/>
+        <label class="fld"><input type="checkbox" id="s_addTricks" ${DEFAULTS.addTricks?"checked":""}/> Add tricks won on top of the bonus</label>
+        <label class="fld"><input type="checkbox" id="s_failTricks" ${DEFAULTS.failTricks?"checked":""}/> Missed contract still scores tricks won</label>
+        <label class="fld"><input type="checkbox" id="s_hook" ${DEFAULTS.hook?"checked":""}/> Enforce hook rule (dealer can't make bids = tricks)</label>
+        <label class="fld"><input type="checkbox" id="s_relax" ${DEFAULTS.relaxLast?"checked":""}/> Relax the hook on the last round</label>
+        <p class="src">Defaults match your table: 10 + tricks for a made contract, tricks won if missed, dealer hooked except on the final hand.</p>
+      </div>
+    </details>
+  </section>`;
+}
+function wireSetup(){
+  $$('#app input[data-pi]').forEach(inp=>{
+    inp.oninput = ()=>{ state.setupPlayers[+inp.dataset.pi] = inp.value; updateRoundsHint(); refreshDealerOpts(); };
+  });
+  $$('#app button[data-rm]').forEach(b=>{
+    b.onclick = ()=>{ state.setupPlayers.splice(+b.dataset.rm,1); render(); wireSetup(); };
+  });
+  $("#addP") && ($("#addP").onclick = ()=>{ state.setupPlayers.push(""); render(); wireSetup(); });
+  $("#startCards").oninput = updateRoundsHint;
+  updateRoundsHint();
+  $("#startGame").onclick = startGame;
+}
+function refreshDealerOpts(){
+  const sel = $("#dealer"); if(!sel) return; const cur = sel.value;
+  sel.innerHTML = state.setupPlayers.map((nm,i)=>`<option value="${i}">${esc(nm||EXAMPLE_NAMES[i]||("Player "+(i+1)))}</option>`).join("");
+  sel.value = Math.min(cur, state.setupPlayers.length-1);
+}
+function updateRoundsHint(){
+  const sc = clampInt($("#startCards").value,1,13) || 1;
+  const n = state.setupPlayers.length;
+  const cap = Math.min(13, Math.floor(52/Math.max(2,n)));
+  if(sc>cap){ $("#startCards").value = cap; }
+  const v = clampInt($("#startCards").value,1,13)||1;
+  $("#roundsHint").textContent = `${v} rounds · ${v} → 1 cards · ${n} players`;
+}
+function startGame(){
+  const names = state.setupPlayers.map((s,i)=> (s.trim()|| EXAMPLE_NAMES[i] || ("Player "+(i+1))));
+  if(names.length<2) return;
+  const settings = {
+    startCards: clampInt($("#startCards").value,1,13)||7,
+    bonus: clampInt($("#s_bonus").value,0,50) ?? 10,
+    addTricks: $("#s_addTricks").checked,
+    failTricks: $("#s_failTricks").checked,
+    hook: $("#s_hook").checked,
+    relaxLast: $("#s_relax").checked
+  };
+  const dealer = parseInt($("#dealer").value,10)||0;
+  state.active = newGame(names, dealer, settings);
+  Storage.setActive(state.active);
+  state.view="game"; render();
+}
+
+/* ---------------- GAME ---------------- */
+function viewGame(){
+  const g = state.active;
+  const t = totals(g);
+  const ci = currentRoundIndex(g);
+  const done = ci === -1;
+  const ld = leaders(g);
+
+  return `
+    ${shelf(g,t,ld)}
+    ${done && state.editing===null ? winnerPanel(g,ld,t) : entryPanel(g)}
+    ${scorepad(g,t)}
+    <div class="row" style="margin-top:14px">
+      <button class="btn ghost sm" id="abandon">Abandon game</button>
+    </div>`;
+}
+
+function shelf(g,t,ld){
+  const max = Math.max(1, ld.max);
+  const min = Math.min(0, ...t);
+  const range = Math.max(1, max - Math.min(0,min));
+  const pints = g.players.map((nm,i)=>{
+    const pct = Math.max(6, Math.round(((t[i]-Math.min(0,min))/range)*100));
+    const lead = ld.winners.includes(i) && ld.max>0;
+    return `<div class="pint ${lead?'lead':''}">
+      <div class="crown">${lead?'&#9819;':''}</div>
+      <div class="glass"><div class="fill" style="height:${pct}%"><div class="foam"></div></div></div>
+      <div class="name" title="${esc(nm)}">${esc(nm)}</div>
+      <div class="score">${t[i]}</div>
+    </div>`;
+  }).join("");
+  return `<div class="shelf">${pints}</div>`;
+}
+
+function entryPanel(g){
+  const idx = state.editing!==null ? state.editing : currentRoundIndex(g);
+  const r = g.rounds[idx];
+  const n = g.players.length;
+  const order = bidOrder(r, n);
+  const isLast = idx === g.rounds.length-1;
+  const firstBidder = order[0];
+  const phase = r.bidsLocked ? "play" : "bid";
+
+  // --- Phase 1: bidding (dealer hooked) ---
+  const rowsBid = order.map(pi=>{
+    const isDealer = pi===r.dealerIndex, isFirst = pi===firstBidder;
+    return `<div class="entry bidphase" data-row="${pi}">
+      <div class="pl">
+        <span class="nm">${esc(g.players[pi])}</span>
+        ${isDealer?'<span class="badge deal">Dealer</span>':''}
+        ${isFirst?'<span class="badge first">Bids 1st</span>':''}
+        ${isDealer?'<span class="hint" data-hint></span>':''}
+      </div>
+      <input class="bid" inputmode="numeric" type="number" min="0" max="${r.cards}" data-bid="${pi}" value="${r.bids[pi]??''}" placeholder="–"/>
+    </div>`;
+  }).join("");
+
+  // --- Phase 2: recording tricks (bids locked) ---
+  const rowsPlay = order.map(pi=>{
+    const isDealer = pi===r.dealerIndex;
+    return `<div class="entry playphase" data-row="${pi}">
+      <div class="pl"><span class="nm">${esc(g.players[pi])}</span>${isDealer?'<span class="badge deal">Dealer</span>':''}</div>
+      <div class="lockchip" title="bid">${r.bids[pi]??0}</div>
+      <input class="trk" inputmode="numeric" type="number" min="0" max="${r.cards}" data-trk="${pi}" value="${r.tricks[pi]??''}" placeholder="–"/>
+    </div>`;
+  }).join("");
+
+  const bidBody = `
+    <div class="entry bidphase head"><span class="pl">Player</span><span>Bid</span></div>
+    ${rowsBid}
+    <div class="feedback" id="fb"></div>
+    <button class="btn" id="lock">Lock bids &rarr;</button>`;
+
+  // Trumps are picked by the highest bidder (optional to record — used for stats).
+  const hb = highestBidder(g, r);
+  const trumpsPicker = `
+    <div class="trumps">
+      <span class="lab">Trumps${hb!=null?` · <b>${esc(g.players[hb])}</b> picks`:''}</span>
+      ${SUITS.map(([code,sym])=>`<button type="button" class="suitbtn" data-suit="${code}" aria-pressed="${r.trumps===code}">${sym}</button>`).join("")}
+    </div>`;
+
+  const playBody = `
+    <div class="entry playphase head"><span class="pl">Player</span><span>Bid</span><span>Won</span></div>
+    ${rowsPlay}
+    ${trumpsPicker}
+    <div class="feedback" id="fb"></div>
+    <button class="btn" id="record">${state.editing!==null?'Save round':'Record round'}</button>
+    <button class="btn ghost sm" id="editbids" style="margin-top:10px">&larr; Edit bids</button>`;
+
+  return `<section class="panel" id="entry" data-idx="${idx}" data-phase="${phase}">
+    <div class="round-head">
+      <div class="rno">Round ${idx+1}<span style="color:var(--ash);font-size:14px"> / ${g.rounds.length}</span></div>
+      <div class="cards">${r.cards} card${r.cards>1?'s':''} · ${r.cards} trick${r.cards>1?'s':''}</div>
+    </div>
+    <div class="deal-note"><b>${esc(g.players[r.dealerIndex])}</b> deals · <b>${esc(g.players[firstBidder])}</b> bids first · <span class="phasetag">${phase==="bid"?"Bidding":"Recording tricks"}</span>${isLast?'<span style="color:var(--gold)"> · final hand, hook relaxed</span>':''}</div>
+
+    ${phase==="bid" ? bidBody : playBody}
+    ${state.editing!==null?'<button class="btn ghost sm" id="cancelEdit" style="margin-top:10px">Cancel edit</button>':''}
+  </section>`;
+}
+
+function scorepad(g,t){
+  const n = g.players.length;
+  const head = `<tr><th>Rnd</th>${g.players.map(p=>`<th>${esc(p)}</th>`).join("")}</tr>`;
+  const body = g.rounds.map((r,ri)=>{
+    if(!r.recorded && ri!==state.editing) return ""; // only show played (or being-edited) rounds
+    const cells = g.players.map((_,pi)=>{
+      const made = r.bids[pi]!=null && r.bids[pi]===r.tricks[pi];
+      const sc = roundScore(r.bids[pi], r.tricks[pi], g.settings);
+      const bidTxt = r.bids[pi]==null?'·':r.bids[pi];
+      return `<td class="sc"><span class="${made?'made':''}">${sc}</span><br><small style="color:#9a7b3a">bid ${bidTxt}/${r.tricks[pi]??'·'}</small></td>`;
+    }).join("");
+    const cls = ri===state.editing?'editing':'';
+    return `<tr class="editable ${cls}" data-edit="${ri}"><td class="rh">${r.cards}c</td>${cells}</tr>`;
+  }).join("");
+  const foot = `<tr>${[''].concat(t).map((v,i)=> i===0?`<td>Total</td>`:`<td>${v}</td>`).join("")}</tr>`;
+  return `<div class="pad">
+    <h3>Scorepad</h3>
+    <table><thead>${head}</thead><tbody>${body||`<tr><td colspan="${n+1}" class="rh" style="color:#9a7b3a;text-align:center">No hands played yet</td></tr>`}</tbody><tfoot>${foot}</tfoot></table>
+    <div class="tap">Tap any played hand to fix a mis-score.</div>
+  </div>`;
+}
+
+function winnerPanel(g, ld, t){
+  const order = g.players.map((nm,i)=>({nm,i,pts:t[i]})).sort((a,b)=>b.pts-a.pts);
+  const champs = ld.winners.map(i=>g.players[i]).join(" & ");
+  const li = order.map((row,pos)=>{
+    const win = ld.winners.includes(row.i);
+    return `<li class="${win?'win':''}"><span><span class="pos">${pos+1}</span>${esc(row.nm)}</span><span class="pts">${row.pts}</span></li>`;
+  }).join("");
+  return `<section class="panel">
+    <div class="winner">
+      <div class="cup">&#127881;</div>
+      <h2>${esc(champs)}</h2>
+      <div class="sub">${ld.winners.length>1?'A shared pot — split the next round.':'Winner takes the pot.'}</div>
+    </div>
+    <ul class="standings">${li}</ul>
+    <div class="row">
+      <button class="btn" id="rematch">Rematch (same table)</button>
+      <button class="btn ghost" id="newgame">New game</button>
+    </div>
+  </section>`;
+}
+
+/* ---------------- GAME WIRING ---------------- */
+function wireGame(){
+  // scorepad row editing
+  $$('#app tr[data-edit]').forEach(tr=> tr.onclick = ()=>{ state.editing = +tr.dataset.edit; render(); });
+
+  $("#abandon") && ($("#abandon").onclick = ()=>{
+    if(confirm("Abandon this game? It won't be saved to the Hall of Fame.")){
+      Storage.clearActive(); state.active=null; state.editing=null; render();
+    }
+  });
+  $("#rematch") && ($("#rematch").onclick = ()=>{
+    const g=state.active; const next=newGame(g.players,(g.startDealer+1)%g.players.length,g.settings);
+    state.active=next; Storage.setActive(next); state.editing=null; render();
+  });
+  $("#newgame") && ($("#newgame").onclick = ()=>{
+    state.setupPlayers = state.active.players.slice();
+    Storage.clearActive(); state.active=null; state.editing=null; render();
+  });
+  $("#cancelEdit") && ($("#cancelEdit").onclick = ()=>{ state.editing=null; render(); });
+
+  if($("#entry")) wireEntry();
+}
+
+function wireEntry(){
+  const panel = $("#entry"); if(!panel) return;
+  const g = state.active;
+  const idx = +panel.dataset.idx;
+  const r = g.rounds[idx];
+  const phase = panel.dataset.phase;
+  const isLast = idx === g.rounds.length-1;
+  const relaxed = isLast && g.settings.relaxLast;
+
+  if(phase === "bid"){
+    const readBids = ()=>{ const b=r.bids.slice();
+      $$('#entry input.bid').forEach(inp=>{ const pi=+inp.dataset.bid; b[pi]= inp.value===''? null : clampInt(inp.value,0,r.cards); });
+      return b; };
+
+    const update = ()=>{
+      const bids = readBids();
+      const allBids = bids.every(x=>x!=null);
+      const sumB = bids.reduce((a,x)=>a+(x||0),0);
+      const hookViol = g.settings.hook && !relaxed && allBids && sumB===r.cards;
+
+      // What single value would the dealer be forbidden from? (once everyone else is in)
+      let forbidden = null;
+      if(g.settings.hook && !relaxed){
+        const others = bids.filter((_,i)=> i!==r.dealerIndex);
+        if(others.every(x=>x!=null)){
+          const f = r.cards - others.reduce((a,x)=>a+(x||0),0);
+          if(f>=0 && f<=r.cards) forbidden = f;
+        }
+      }
+      const hintEl = $('#entry [data-hint]');
+      if(hintEl) hintEl.textContent = forbidden!=null ? `can't bid ${forbidden}` : '';
+
+      $$('#entry input.bid').forEach(inp=>{ const pi=+inp.dataset.bid;
+        inp.classList.toggle('bad', hookViol && pi===r.dealerIndex); });
+
+      const tags = [`<span class="tag ${hookViol?'warn':'info'}">bids ${sumB}${allBids?'':' …'} / ${r.cards}</span>`];
+      if(forbidden!=null) tags.push(`<span class="tag warn">dealer can't make it total ${r.cards} — no bid ${forbidden}</span>`);
+      else if(!allBids) tags.push(`<span class="tag info">each player bids, dealer last</span>`);
+      $('#fb').innerHTML = tags.join('');
+      $('#lock').disabled = !allBids || hookViol;
+    };
+
+    $$('#entry input.bid').forEach(inp=>{
+      inp.addEventListener('input', ()=>{ update(); focusAdvance($$('#entry input.bid'), inp, r.cards, '#lock'); });
+      inp.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); focusAdvance($$('#entry input.bid'), inp, r.cards, '#lock'); } });
+      inp.addEventListener('change', ()=>{ r.bids = readBids(); Storage.setActive(g); });
+    });
+    update();
+
+    $('#lock').onclick = ()=>{
+      const bids = readBids();
+      if(bids.some(x=>x==null)) return;
+      const sumB = bids.reduce((a,x)=>a+(x||0),0);
+      if(g.settings.hook && !relaxed && sumB===r.cards){
+        $('#fb').innerHTML = `<span class="tag warn">Bids can't total ${r.cards}. The dealer must change.</span>`; return;
+      }
+      r.bids = bids; r.bidsLocked = true; Storage.setActive(g); render();
+    };
+
+  } else { // ---- play phase ----
+    const readTr = ()=>{ const t=r.tricks.slice();
+      $$('#entry input.trk').forEach(inp=>{ const pi=+inp.dataset.trk; t[pi]= inp.value===''? null : clampInt(inp.value,0,r.cards); });
+      return t; };
+
+    const update = ()=>{
+      const tr = readTr();
+      const allT = tr.every(x=>x!=null);
+      const sumT = tr.reduce((a,x)=>a+(x||0),0);
+      const trOk = allT && sumT===r.cards;
+      $$('#entry .entry.playphase').forEach(row=>{ const pi=+row.dataset.row; const ti=row.querySelector('.trk'); if(!ti) return;
+        const made = tr[pi]!=null && tr[pi]===r.bids[pi];
+        ti.classList.toggle('made', made);
+        ti.classList.toggle('bad', allT && sumT!==r.cards);
+      });
+      const rem = r.cards - sumT;
+      const tags = [`<span class="tag ${trOk?'good':(allT?'warn':'info')}">tricks ${sumT} / ${r.cards}</span>`];
+      if(allT && sumT!==r.cards) tags.push(`<span class="tag warn">must total ${r.cards} (${rem>0?rem+' short':Math.abs(rem)+' over'})</span>`);
+      else if(!allT) tags.push(`<span class="tag info">enter tricks won by each</span>`);
+      $('#fb').innerHTML = tags.join('');
+      $('#record').disabled = !trOk;
+    };
+
+    $$('#entry input.trk').forEach(inp=>{
+      inp.addEventListener('input', ()=>{ update(); focusAdvance($$('#entry input.trk'), inp, r.cards, '#record'); });
+      inp.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); focusAdvance($$('#entry input.trk'), inp, r.cards, '#record'); } });
+      inp.addEventListener('change', ()=>{ r.tricks = readTr(); Storage.setActive(g); });
+    });
+    update();
+
+    // Trumps picker (optional) — toggles the suit the highest bidder chose.
+    $$('#entry .suitbtn').forEach(btn=>{
+      btn.onclick = ()=>{
+        const code = btn.dataset.suit;
+        r.trumps = (r.trumps===code) ? null : code;
+        $$('#entry .suitbtn').forEach(b=> b.setAttribute('aria-pressed', b.dataset.suit===r.trumps));
+        Storage.setActive(g);
+      };
+    });
+
+    $('#record').onclick = ()=>{
+      const tr = readTr();
+      if(tr.some(x=>x==null) || tr.reduce((a,x)=>a+(x||0),0)!==r.cards){
+        $('#fb').innerHTML = `<span class="tag warn">Tricks must total exactly ${r.cards}.</span>`; return;
+      }
+      r.tricks = tr; r.recorded = true; r.bidsLocked = true;
+      state.editing = null; finishIfDone(g); Storage.setActive(g); render();
+    };
+    $('#editbids').onclick = ()=>{ r.bidsLocked = false; Storage.setActive(g); render(); };
+  }
+}
+
+function finishIfDone(g){
+  if(currentRoundIndex(g)===-1){
+    const ld = leaders(g);
+    g.finishedAt = new Date().toISOString();
+    g.winner = ld.winners.map(i=>g.players[i]).join(" & ");
+    Storage.saveGame(g);            // upsert to Hall of Fame
+    state.games.push(g);            // refresh cache (upsert-safe enough for view)
+  } else if(g.finishedAt){
+    // a finished game was re-edited: recompute + re-save
+    const ld=leaders(g); g.winner=ld.winners.map(i=>g.players[i]).join(" & "); Storage.saveGame(g);
+  }
+}
+
+/* ---------------- STATS / HALL OF FAME ---------------- */
+function computeStats(games, countFilter){
+  let fin = games.filter(g=>g.finishedAt);
+  const counts = [...new Set(fin.map(g=>g.players.length))].sort((a,b)=>a-b);
+  if(countFilter && countFilter!=="all") fin = fin.filter(g=>g.players.length===+countFilter);
+
+  const byName = {};
+  const ensure = n => byName[n] || (byName[n]={
+    name:n, games:0, wins:0, points:0, bestGame:0,
+    rounds:0, contracts:0, busts:0,
+    tricksWon:0, tricksAvail:0, bidSum:0, cardSum:0,
+    overbids:0, minRaises:0, trumpsPicked:0, trumpsMade:0,
+    nilBids:0, nilMade:0, bestHand:0
+  });
+  let bigRound = {val:-1,name:null,cards:null};
+
+  fin.forEach(g=>{
+    const t = totals(g);
+    const ld = leaders(g);
+    const n = g.players.length;
+
+    g.players.forEach((nm,i)=>{
+      const s = ensure(nm);
+      s.games++; s.points += t[i];
+      if(ld.winners.includes(i)) s.wins++;
+      if(t[i] > s.bestGame) s.bestGame = t[i];
+    });
+
+    g.rounds.forEach(r=>{
+      if(!r.recorded) return;
+      const hb = highestBidder(g, r);
+      g.players.forEach((nm,i)=>{
+        const bid = r.bids[i], tr = r.tricks[i];
+        if(bid==null || tr==null) return;
+        const s = ensure(nm);
+        s.rounds++;
+        s.tricksWon += tr; s.tricksAvail += r.cards;
+        s.bidSum += bid;   s.cardSum += r.cards;
+        const rs = roundScore(bid, tr, g.settings);
+        if(rs > s.bestHand) s.bestHand = rs;
+        if(rs > bigRound.val) bigRound = {val:rs, name:nm, cards:r.cards};
+        if(bid===tr) s.contracts++; else s.busts++;
+        if(bid===0){ s.nilBids++; if(tr===0) s.nilMade++; }
+        if(i===hb){ s.trumpsPicked++; if(bid===tr) s.trumpsMade++; }
+      });
+      // Overbid pass: walking bid order, who took the lead from a prior bidder?
+      let runMax = -1;
+      bidOrder(r, n).forEach((pi,k)=>{
+        const b = r.bids[pi];
+        if(b==null) return;
+        if(k>0 && runMax>=0 && b>runMax){
+          const s = ensure(g.players[pi]);
+          s.overbids++;
+          if(b - runMax === 1) s.minRaises++;   // the spiteful +1
+        }
+        if(b > runMax) runMax = b;
+      });
+    });
+  });
+
+  const players = Object.values(byName).sort((a,b)=>
+    b.wins-a.wins ||
+    (b.points/Math.max(1,b.games)) - (a.points/Math.max(1,a.games)) ||
+    a.name.localeCompare(b.name));
+  const totalRounds = fin.reduce((a,g)=>a+g.rounds.filter(r=>r.recorded).length,0);
+  return { players, counts, gamesPlayed:fin.length, totalRounds, bigRound, recent:fin.slice(-6).reverse() };
+}
+
+// Pick the player who leads a metric, with a minimum-rounds guard for rates.
+function leaderOf(players, valFn, minRounds=0){
+  let best=null, bv=-Infinity;
+  players.forEach(p=>{ if(p.rounds<minRounds) return; const v=valFn(p); if(v>bv){ bv=v; best=p; } });
+  return best ? {name:best.name, val:bv} : null;
+}
+
+function viewStats(){
+  const cf = state.statFilter || "all";
+  const st = computeStats(state.games, cf);
+
+  // table-size filter (only shows splits that actually exist in the data)
+  const allCounts = computeStats(state.games, "all").counts;
+  const seg = `<div class="seg">
+    <button class="btn sm ghost segbtn" data-cf="all" aria-pressed="${cf==='all'}">All tables</button>
+    ${allCounts.map(c=>`<button class="btn sm ghost segbtn" data-cf="${c}" aria-pressed="${cf===String(c)}">${c}-player</button>`).join("")}
+  </div>`;
+
+  if(st.gamesPlayed===0){
+    return `<section class="panel"><h2>Hall of Fame</h2>${seg}
+      <div class="empty">No games on the books${cf!=='all'?` for ${cf}-player tables`:''} yet.<br>Finish a game and your table's all-time record fills in here.</div>
+    </section>`;
+  }
+
+  const pct = (a,b)=> b? Math.round(a/b*100) : 0;
+  const stats = `<div class="stat-grid">
+    <div class="stat"><div class="big">${st.gamesPlayed}</div><div class="lbl">Games played</div></div>
+    <div class="stat"><div class="big">${st.totalRounds}</div><div class="lbl">Hands dealt</div></div>
+    <div class="stat"><div class="big">${st.bigRound.val}</div><div class="lbl">Best hand · ${esc(st.bigRound.name||'')}${st.bigRound.cards?` (${st.bigRound.cards}c)`:''}</div></div>
+  </div>`;
+
+  // Table awards — fun superlatives
+  const trumpHog = leaderOf(st.players, p=>p.trumpsPicked);
+  const overlord = leaderOf(st.players, p=>p.overbids);
+  const spite    = leaderOf(st.players, p=>p.minRaises);
+  const sharp    = leaderOf(st.players, p=>pct(p.contracts,p.rounds), 8);
+  const awardLi = (label, a)=> a && a.val>0 ? `<li><span>${label}</span><span class="pts">${esc(a.name)} · ${a.val}${label==='Sharpest shooter'?'%':''}</span></li>` : '';
+  const awards = `<ul class="standings" style="max-width:none">
+    ${awardLi('Trump hog', trumpHog)}
+    ${awardLi('Most overbids', overlord)}
+    ${awardLi('Spite raises (+1)', spite)}
+    ${awardLi('Sharpest shooter', sharp)}
+  </ul>`;
+
+  const hof = st.players.map((p,i)=>{
+    const winPct  = pct(p.wins, p.games);
+    const conPct  = pct(p.contracts, p.rounds);
+    const trkPct  = pct(p.tricksWon, p.tricksAvail);
+    const bpc     = p.cardSum ? (p.bidSum/p.cardSum).toFixed(2) : '0.00';
+    const avg     = (p.points/Math.max(1,p.games)).toFixed(0);
+    const trMake  = pct(p.trumpsMade, p.trumpsPicked);
+    return `<li>
+      <span class="rk">${i+1}</span>
+      <span>
+        <span class="nm">${esc(p.name)}</span><br>
+        <span class="meta">${p.games} games · ${winPct}% win · avg ${avg} · best game ${p.bestGame}</span><br>
+        <span class="meta">${conPct}% contracts · ${trkPct}% tricks · ${bpc} bid/card</span><br>
+        <span class="meta">${p.overbids} overbids (${p.minRaises} spite) · trumps ${p.trumpsPicked} (${trMake}% made) · nil ${p.nilMade}/${p.nilBids}</span>
+      </span>
+      <span class="w">${p.wins}</span>
+      <span class="meta">wins</span>
+    </li>`;
+  }).join("");
+
+  const recent = st.recent.map(g=>{
+    const d = new Date(g.finishedAt); const t=totals(g);
+    const champ = esc(g.winner||''); const top=Math.max(...t);
+    return `<li><span class="rk">&#9824;</span><span><span class="nm">${champ}</span><br><span class="meta">${g.players.length}p · ${esc(g.players.join(', '))}</span></span><span class="w">${top}</span><span class="meta">${d.toLocaleDateString()}</span></li>`;
+  }).join("");
+
+  return `
+    <section class="panel"><h2>Hall of Fame</h2>
+      <div class="sub">All-time record · ${cf==='all'?'every table':cf+'-player games'}.</div>
+      ${seg}
+      <div style="margin-top:14px">${stats}</div>
+      <h3 style="font-family:'Cinzel';font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--ash);margin:8px 0 6px">Table awards</h3>
+      ${awards}
+      <ul class="hof">${hof}</ul>
+    </section>
+    <section class="panel"><h2>Recent games</h2><ul class="hof">${recent}</ul></section>`;
+}
+
+function wireStats(){
+  $$('#app [data-cf]').forEach(b=> b.onclick = ()=>{ state.statFilter = b.dataset.cf; render(); });
+}
+
+boot();
+</script>
+</body>
+</html>
